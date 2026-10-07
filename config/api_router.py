@@ -17,7 +17,8 @@ router.register("compilations", CompilationViewSet, basename="compilation")
 
 
 app_name = "api"
-urlpatterns = router.urls + [
+urlpatterns = [
+    *router.urls,
     path("workspace/", WorkspaceView.as_view(), name="workspace"),
     path("templates/", TemplateListView.as_view(), name="template-list"),
 ]

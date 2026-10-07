@@ -28,9 +28,11 @@ class WorkspaceView(APIView):
     def get(self, request):
         workspace = get_workspace(request)
         if workspace is not None:
-            return Response(
-                {"workspace_id": str(workspace.id), "anonymous": workspace.user_id is None}
-            )
+            data = {
+                "workspace_id": str(workspace.id),
+                "anonymous": workspace.user_id is None,
+            }
+            return Response(data)
         raw, token_hash = new_anonymous_token()
         workspace = Workspace.objects.create(
             anonymous_token_hash=token_hash,
@@ -87,7 +89,9 @@ class ResumeViewSet(viewsets.ModelViewSet):
                 {"detail": "Resume has no content."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        compilation = Compilation.objects.create(resume=resume, status=Compilation.Status.QUEUED)
+        compilation = Compilation.objects.create(
+            resume=resume, status=Compilation.Status.QUEUED,
+        )
         compile_resume.delay(str(compilation.id))
         return Response(
             {"id": str(compilation.id), "status": compilation.status},
@@ -98,7 +102,9 @@ class ResumeViewSet(viewsets.ModelViewSet):
     def download(self, request, pk=None):
         resume = self.get_object()
         latest = (
-            Compilation.objects.filter(resume=resume, status=Compilation.Status.SUCCEEDED)
+            Compilation.objects.filter(
+                resume=resume, status=Compilation.Status.SUCCEEDED,
+            )
             .exclude(pdf="")
             .order_by("-finished_at")
             .first()

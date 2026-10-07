@@ -16,7 +16,9 @@ TECTONIC_TIMEOUT = 30
 @shared_task
 def compile_resume(compilation_id: str) -> None:
     try:
-        compilation = Compilation.objects.select_related("resume").get(id=compilation_id)
+        compilation = Compilation.objects.select_related("resume").get(
+            id=compilation_id,
+        )
     except Compilation.DoesNotExist:
         return
     resume = compilation.resume
@@ -28,17 +30,20 @@ def compile_resume(compilation_id: str) -> None:
         (tmpdir / "main.tex").write_text(resume.main_tex)
         if template.cls_path is not None:
             shutil.copy(template.cls_path, tmpdir / "resume.cls")
-        proc = subprocess.run(
-            ["tectonic", "--outdir", str(tmpdir), "main.tex"],
+        proc = subprocess.run(  # noqa: S603 — pinned trusted binary, no shell
+            ["tectonic", "--outdir", str(tmpdir), "main.tex"],  # noqa: S607
             cwd=tmpdir,
             capture_output=True,
             text=True,
             timeout=TECTONIC_TIMEOUT,
+            check=False,
         )
         log = (proc.stdout or "") + (proc.stderr or "")
         pdf_path = tmpdir / "main.pdf"
         if proc.returncode == 0 and pdf_path.exists():
-            compilation.pdf.save(f"{resume.slug}.pdf", ContentFile(pdf_path.read_bytes()), save=False)
+            compilation.pdf.save(
+                f"{resume.slug}.pdf", ContentFile(pdf_path.read_bytes()), save=False,
+            )
             compilation.status = Compilation.Status.SUCCEEDED
         else:
             compilation.status = Compilation.Status.FAILED

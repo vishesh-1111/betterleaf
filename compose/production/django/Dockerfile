@@ -53,6 +53,15 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
   && apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false \
   && rm -rf /var/lib/apt/lists/*
 
+# Install the pinned Tectonic LaTeX engine (static binary, no dependencies).
+ARG TECTONIC_VERSION=0.16.9
+RUN curl -fSL -o /tmp/tectonic.tar.gz \
+      "https://github.com/tectonic-typesetting/tectonic/releases/download/tectonic%40${TECTONIC_VERSION}/tectonic-${TECTONIC_VERSION}-x86_64-unknown-linux-musl.tar.gz" \
+    && echo "60b13a0826ae7ad9ce34b4a2df06bff2cfcfa6dda8a915477c0cbb84e1a4a902  /tmp/tectonic.tar.gz" | sha256sum -c - \
+    && tar xzf /tmp/tectonic.tar.gz -C /usr/local/bin tectonic \
+    && chmod +x /usr/local/bin/tectonic \
+    && rm /tmp/tectonic.tar.gz
+
 
 COPY --chown=django:django ./compose/production/django/entrypoint /entrypoint
 RUN sed -i 's/\r$//g' /entrypoint

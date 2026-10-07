@@ -2,6 +2,7 @@ volumes:
   betterleaf_local_postgres_data: {}
   betterleaf_local_postgres_data_backups: {}
   betterleaf_local_redis_data: {}
+  betterleaf_local_tectonic_cache: {}
 
 services:
   django: &django
@@ -17,6 +18,9 @@ services:
     volumes:
       - /app/.venv
       - .:/app:z
+      - betterleaf_local_tectonic_cache:/tectonic-cache
+    environment:
+      TECTONIC_CACHE_DIR: /tectonic-cache
     env_file:
       - path: ./.envs/.local/.django
         required: false

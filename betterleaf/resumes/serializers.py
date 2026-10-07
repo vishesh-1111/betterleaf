@@ -15,12 +15,21 @@ class ResumeSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Resume
-        fields = ["id", "title", "slug", "template", "main_tex", "updated_at", "latest_pdf_url"]
+        fields = [
+            "id",
+            "title",
+            "slug",
+            "template",
+            "main_tex",
+            "updated_at",
+            "latest_pdf_url",
+        ]
         read_only_fields = ["id", "slug", "updated_at", "latest_pdf_url"]
 
     def validate_template(self, value):
         if value not in TEMPLATE_CATALOG:
-            raise serializers.ValidationError(f"Unknown template: {value}")
+            message = f"Unknown template: {value}"
+            raise serializers.ValidationError(message)
         return value
 
     def get_latest_pdf_url(self, obj):

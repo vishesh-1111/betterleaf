@@ -1,8 +1,8 @@
 import uuid
 
-from slugify import slugify
 from django.conf import settings
 from django.db import models
+from slugify import slugify
 
 
 class Workspace(models.Model):
@@ -14,7 +14,9 @@ class Workspace(models.Model):
         on_delete=models.CASCADE,
         related_name="workspaces",
     )
-    anonymous_token_hash = models.CharField(max_length=64, null=True, blank=True, unique=True)
+    anonymous_token_hash = models.CharField(
+        max_length=64, null=True, blank=True, unique=True,
+    )
     expires_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -26,7 +28,9 @@ class Workspace(models.Model):
 
 class Resume(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    workspace = models.ForeignKey(Workspace, on_delete=models.CASCADE, related_name="resumes")
+    workspace = models.ForeignKey(
+        Workspace, on_delete=models.CASCADE, related_name="resumes",
+    )
     title = models.CharField(max_length=200)
     slug = models.SlugField(max_length=255, unique=True, blank=True)
     template = models.CharField(max_length=50)  # slug key into TEMPLATE_CATALOG
@@ -62,8 +66,12 @@ class Compilation(models.Model):
         FAILED = "failed", "Failed"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    resume = models.ForeignKey(Resume, on_delete=models.CASCADE, related_name="compilations")
-    status = models.CharField(max_length=20, choices=Status.choices, default=Status.QUEUED)
+    resume = models.ForeignKey(
+        Resume, on_delete=models.CASCADE, related_name="compilations",
+    )
+    status = models.CharField(
+        max_length=20, choices=Status.choices, default=Status.QUEUED,
+    )
     pdf = models.FileField(upload_to="resumes/pdfs/%Y/%m/", null=True, blank=True)
     log = models.TextField(blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
