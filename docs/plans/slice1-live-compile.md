@@ -4,11 +4,11 @@
 
 BetterLeaf is an AI-assisted LaTeX editor for resume development. This plan delivers **slice 1 only**: a user types LaTeX and sees a live-compiled PDF preview that tracks the source, and can download that PDF. AI edit, JD tailoring, and resume upload→convert are later slices and are not touched here.
 
-The backend is the existing cookiecutter-django scaffold at `/home/vishesh/betterleaf` (Django 6.0.8, DRF, Celery+Redis, Postgres, allauth). The frontend is a new Next.js app. A user owns multiple resumes; there is no version history (current version only).
+The backend is the existing cookiecutter-django scaffold at `/home/vishesh/betterleaf` (Django 6.0.8, DRF, Celery+Redis, Postgres, allauth). The frontend is a new Next.js app. A **workspace** owns multiple resumes; there is no version history (current version only). Workspaces start **anonymous** (temporary, keyed by an unguessable token — the editor is fully usable with no login) and become **persistent** when bound to an account at sign-in. There is no login gate anywhere in slice 1.
 
 A template is a **directory of LaTeX source files** (a starter `.tex` and, if styled, a `.cls` class file) whose compilation is verified against Tectonic. The first and only shipping template is **Jake's Resume**. The `.tex`→`.cls` distinction: a `.cls` file is a reusable LaTeX class (the "layout engine") loaded via `\documentclass{...}`; a `.tex` is content. Jake's Resume is a flat `article` + preamble, so it ships as a self-contained `starter.tex` (no `.cls`). Future templates that need a reusable class add a `.cls`.
 
-Load-bearing decisions (fixed): server-side compilation via a pinned **Tectonic 0.16.9** binary run by **Celery**; **Next.js SPA** with Django as API-only; result delivery by **polling** a status endpoint; auth via the existing **DRF TokenAuthentication**.
+Load-bearing decisions (fixed): server-side compilation via a pinned **Tectonic 0.16.9** binary run by **Celery**; **Next.js SPA** with Django as API-only; result delivery by **polling** a status endpoint; auth via a **workspace token** (a high-entropy anonymous token in an httpOnly cookie that scopes every resume/compilation resource). There is **no email+password sign-in**; binding a workspace to an account at sign-in is Google-only and lands in slice 2, not here.
 
 ## Approach
 
@@ -55,9 +55,23 @@ from django.conf import settings
 from django.db import models
 
 
+class Workspace(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="workspaces",
+    )
+    anonymous_token_hash = models.CharField(max_length=64, null=True, blank=True, unique=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
 class Resume(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="resumes")
+    workspace = models.ForeignKey(Workspace, on_delete=models.CASCADE, related_name="resumes")
     title = models.CharField(max_length=200)
     slug = models.SlugField(max_length=255, unique=True, blank=True)
     template = models.CharField(max_length=50)  # slug key into TEMPLATE_CATALOG
@@ -207,7 +221,68 @@ def compile_resume(compilation_id: str) -> None:
 
 The `TECTONIC_CACHE_DIR` env var set on the worker (step 2) makes Tectonic reuse its downloaded bundle. The task stores the raw Tectonic stdout+stderr as `log`; no structured log parser is needed for slice 1 (the frontend renders the raw log).
 
-**6. Serializers, viewsets, templates endpoint, router.**
+**6. Auth helpers, serializers, views, router.**
+
+`betterleaf/resumes/auth.py`:
+
+```python
+import hashlib
+import secrets
+from datetime import timedelta
+
+from django.utils import timezone
+
+from betterleaf.resumes.models import Workspace
+
+ANONYMOUS_WORKSPACE_TTL = timedelta(days=30)
+
+
+def hash_token(raw: str) -> str:
+    return hashlib.sha256(raw.encode()).hexdigest()
+
+
+def new_anonymous_token() -> tuple[str, str]:
+    raw = secrets.token_urlsafe(32)
+    return raw, hash_token(raw)
+
+
+def get_workspace(request) -> Workspace | None:
+    """Resolve the request's workspace: the signed-in user's, else the anonymous
+    workspace named by the `bl_session` cookie."""
+    user = getattr(request, "user", None)
+    if user is not None and user.is_authenticated:
+        workspace = Workspace.objects.filter(user=user).order_by("created_at").first()
+        if workspace is None:
+            workspace = Workspace.objects.create(user=user)
+        return workspace
+    raw = request.COOKIES.get("bl_session")
+    if not raw:
+        return None
+    try:
+        workspace = Workspace.objects.get(anonymous_token_hash=hash_token(raw))
+    except Workspace.DoesNotExist:
+        return None
+    if workspace.expires_at is not None and workspace.expires_at < timezone.now():
+        return None
+    return workspace
+```
+
+The raw token is never stored — only its SHA-256 hash — so a DB leak does not expose usable credentials.
+
+`betterleaf/resumes/permissions.py`:
+
+```python
+from rest_framework.permissions import BasePermission
+
+from betterleaf.resumes.auth import get_workspace
+
+
+class HasWorkspace(BasePermission):
+    message = "No active workspace; create one via GET /api/workspace/."
+
+    def has_permission(self, request, view):
+        return get_workspace(request) is not None
+```
 
 `betterleaf/resumes/serializers.py`:
 
@@ -218,36 +293,46 @@ The `TECTONIC_CACHE_DIR` env var set on the worker (step 2) makes Tectonic reuse
 
 `betterleaf/resumes/views.py`:
 
-- `TemplateListView(APIView)` — `GET`, returns `TemplateSerializer(TEMPLATE_CATALOG.values(), many=True)`.
-- `ResumeViewSet(viewsets.ModelViewSet)` — `queryset` scoped to `self.request.user`; `get_serializer_class` returns `ResumeListSerializer` for `list`, `ResumeSerializer` otherwise; `perform_create` sets `owner` and seeds `main_tex` from `TEMPLATE_CATALOG[template].starter_tex.read_text()`. Custom actions:
+- `WorkspaceView(APIView)` — `permission_classes = [AllowAny]`; `GET` returns the current workspace, creating an anonymous one if none. If `get_workspace(request)` is non-None, return `{"workspace_id": ..., "anonymous": <user is None>}`. Otherwise create `Workspace(anonymous_token_hash=hash, expires_at=timezone.now() + ANONYMOUS_WORKSPACE_TTL)`, set the `bl_session` httpOnly cookie (`samesite="Lax"`, `httponly=True`) to the raw token, and return 201 `{"workspace_id": ..., "anonymous": true}`. Idempotent: a browser carrying a valid cookie gets its existing workspace back on every call.
+- `TemplateListView(APIView)` — `permission_classes = [AllowAny]`; `GET`, returns `TemplateSerializer(TEMPLATE_CATALOG.values(), many=True)`.
+- `ResumeViewSet(viewsets.ModelViewSet)` — `permission_classes = [HasWorkspace]`; `get_queryset` returns `Resume.objects.filter(workspace=get_workspace(self.request))` (`.none()` when no workspace); `get_serializer_class` returns `ResumeListSerializer` for `list`, `ResumeSerializer` otherwise; `perform_create` sets `workspace` and seeds `main_tex` from `TEMPLATE_CATALOG[template].starter_tex.read_text()`. Custom actions:
   - `compile` (`POST /api/resumes/{id}/compile/`, `@action(detail=True, methods=["post"])`): if `main_tex` is blank return 400 with message `"Resume has no content."`; create `Compilation(resume=..., status=QUEUED)`, call `compile_resume.delay(str(compilation.id))`, return 201 with `{"id": str(compilation.id), "status": "queued"}`.
   - `download` (`GET /api/resumes/{id}/download/`, `@action(detail=True, methods=["get"])`): return `FileResponse` of the newest `SUCCEEDED` compilation's `.pdf` (open via `.pdf.open("rb")`), `Content-Disposition: attachment; filename="{resume.slug}.pdf"`, content type `application/pdf`; 404 `{"detail": "No compiled PDF available."}` if none.
-- `CompilationViewSet(viewsets.ReadOnlyModelViewSet)` — queryset `Compilation.objects.filter(resume__owner=self.request.user)`, serializer `CompilationSerializer`.
+- `CompilationViewSet(viewsets.ReadOnlyModelViewSet)` — `permission_classes = [HasWorkspace]`; queryset `Compilation.objects.filter(resume__workspace=get_workspace(self.request))`, serializer `CompilationSerializer`.
 
-Validate `template` against `TEMPLATE_CATALOG` in `ResumeSerializer.validate_template` (reject unknown slug with a `ValidationError`). All views inherit `IsAuthenticated` from the scaffold's `DEFAULT_PERMISSION_CLASSES`.
+Validate `template` against `TEMPLATE_CATALOG` in `ResumeSerializer.validate_template` (reject unknown slug with a `ValidationError`). The resume/compilation viewsets drop the scaffold's `IsAuthenticated` default in favor of `HasWorkspace` (an anonymous workspace is a valid principal). Every query scopes by `get_workspace(request)`, so possessing a workspace token grants access only to that workspace's resources — IDs are UUIDs and are additionally scoped by the token-derived workspace, so there is no cross-workspace read even with a guessed ID.
 
 `betterleaf/resumes/urls.py` is not needed; register in `config/api_router.py`:
 
 ```python
 from django.urls import path
-from betterleaf.resumes.views import CompilationViewSet, ResumeViewSet, TemplateListView
+from betterleaf.resumes.views import (
+    CompilationViewSet,
+    ResumeViewSet,
+    TemplateListView,
+    WorkspaceView,
+)
 
 router.register("resumes", ResumeViewSet, basename="resume")
 router.register("compilations", CompilationViewSet, basename="compilation")
 
-urlpatterns = router.urls + [path("templates/", TemplateListView.as_view(), name="template-list")]
+urlpatterns = router.urls + [
+    path("workspace/", WorkspaceView.as_view(), name="workspace"),
+    path("templates/", TemplateListView.as_view(), name="template-list"),
+]
 ```
 
 The existing `app_name = "api"` and `router.register("users", UserViewSet)` stay.
 
 **7. Backend tests.**
 
-In `betterleaf/resumes/tests.py` (pytest-django, token auth via `rest_framework.authtoken`):
+In `betterleaf/resumes/tests.py` (pytest-django):
 
-- `test_compile_produces_pdf`: create a `Resume` with `template="jakes"` and `main_tex` = the Jake's `starter.tex` source; call `compile_resume(compilation.id)` synchronously (not `.delay`); assert `status == SUCCEEDED`, `compilation.pdf` exists, and `compilation.pdf.open("rb").read(5) == b"%PDF-"`.
-- `test_compile_api_and_download`: APIClient with a token for the owning user; `POST /api/resumes/` (create from template), assert `main_tex` seeded non-empty; `POST /api/resumes/{id}/compile/` with `CELERY_TASK_ALWAYS_EAGER=True`, then `GET /api/compilations/{id}/` returns `succeeded` and a `pdf_url`; `GET /api/resumes/{id}/download/` returns 200 `application/pdf`.
+- `test_compile_produces_pdf`: create a `Workspace` and a `Resume` with `template="jakes"` and `main_tex` = the Jake's `starter.tex` source; call `compile_resume(compilation.id)` synchronously (not `.delay`); assert `status == SUCCEEDED`, `compilation.pdf` exists, and `compilation.pdf.open("rb").read(5) == b"%PDF-"`.
+- `test_anonymous_workspace_api_and_download`: create an anonymous `Workspace` with a known raw token, set `client.cookies["bl_session"] = raw`; `POST /api/resumes/` (create from template), assert `main_tex` seeded non-empty; `POST /api/resumes/{id}/compile/` with `CELERY_TASK_ALWAYS_EAGER=True`, then `GET /api/compilations/{id}/` returns `succeeded` and a `pdf_url`; `GET /api/resumes/{id}/download/` returns 200 `application/pdf`.
+- `test_workspace_created_on_first_visit`: `GET /api/workspace/` with no cookie returns 201 and sets a `bl_session` cookie; a second `GET /api/workspace/` with that cookie returns the same `workspace_id` and `anonymous: true`.
 - `test_unknown_template_rejected`: `POST /api/resumes/` with `template="nope"` returns 400.
-- `test_owner_isolation`: a second user's `GET /api/compilations/{id}/` for the first user's compilation returns 404.
+- `test_workspace_isolation`: a second workspace's `GET /api/compilations/{id}/` for the first workspace's compilation returns 404.
 
 ### Frontend (Next.js)
 
@@ -265,9 +350,9 @@ async rewrites() {
 }
 ```
 
-Create `frontend/lib/api.ts` exporting a `fetch`-based client that reads the token from `localStorage["betterleaf.token"]` and sets `Authorization: Token <token>` on every request; on a 401 it clears the token and redirects to `/login`.
+Anonymous workspace bootstrap: the SPA needs no login to reach the editor. On app load (a small `WorkspaceProvider` or the dashboard/editor's first effect), call `GET /api/workspace/`. Django either returns the existing workspace (the `bl_session` cookie flows same-origin automatically via the rewrites) or creates an anonymous one and sets the cookie. The provider caches `{workspace_id, anonymous}` in React state; the editor and dashboard never gate on a user.
 
-`frontend/app/login/page.tsx`: email + password form; on submit `POST /api/auth-token/` with body `{username: email, password}`; store the returned `{token}` in `localStorage["betterleaf.token"]`; redirect to `/resumes`. (Signup/email-verification stays the scaffold's server-rendered allauth flow at `/accounts/signup/`; accounts can also be created in Django admin.)
+`frontend/lib/api.ts`: a `fetch`-based client with no auth header — the `bl_session` cookie is sent automatically, and slice 1 has no signed-in surface, so there is no token to attach. Account binding (Google sign-in) lands in slice 2; nothing here reads a token or calls an attach endpoint.
 
 **9. Resume dashboard.**
 
@@ -296,7 +381,9 @@ An AI-assisted LaTeX editor for professional resume development.
 
 ## Language
 
-**Resume**: A user-owned LaTeX document — a `main.tex` plus a template class — that compiles to a PDF. _Avoid_: CV, document, file
+**Workspace**: The container owning a visitor's resumes and compile jobs — anonymous (temporary, keyed by an unguessable token) until bound to an account. _Avoid_: session, account, project
+
+**Resume**: A workspace-owned LaTeX document — a `main.tex` plus a template class — that compiles to a PDF. _Avoid_: CV, document, file
 
 **Template**: A bundled first-party LaTeX class (`.cls`) that defines a resume's layout. _Avoid_: style, theme, layout
 
@@ -306,13 +393,15 @@ An AI-assisted LaTeX editor for professional resume development.
 Create `docs/adr/` with three single-paragraph ADRs:
 
 - `0001-server-side-latex-compilation.md` — LaTeX compiles server-side via a pinned Tectonic binary in the Docker image, dispatched by Celery, not client-side WASM; chosen for full TeX package/XeTeX support and natural PDF download, at the cost of a Celery/container dependency.
-- `0002-nextjs-spa-django-api.md` — the frontend is a Next.js SPA and Django serves DRF + token auth only (no server-rendered product pages); chosen for a rich editor surface, at the cost of abandoning the scaffold's server-rendered templates for the product UI.
+- `0002-nextjs-spa-django-api.md` — the frontend is a Next.js SPA and Django serves DRF + workspace auth (an anonymous workspace token in an httpOnly cookie) with no server-rendered product pages; chosen for a rich editor surface, at the cost of abandoning the scaffold's server-rendered templates for the product UI. Sign-in is Google-only (allauth) and lands in slice 2.
 - `0003-latex-source-of-truth.md` — raw LaTeX source (a `main.tex`, optionally styled by a template directory's `.cls`) is the source of truth, not structured/JSON resume data; AI edit and tailoring will edit LaTeX, not a data model.
+- `0004-anonymous-workspace-before-account.md` — the editor is usable with no login: a first visit creates an anonymous `Workspace` keyed by a high-entropy token in an httpOnly cookie, and every resume/compilation query scopes to that workspace; signing in binds (does not copy) the workspace to a `User`. Chosen so slice 1 has no login gate, at the cost of a dedicated workspace-ownership boundary in front of the user model.
 
 ## Critical files & anchors
 
-- `config/settings/base.py` — `LOCAL_APPS` (add `betterleaf.resumes`), `REST_FRAMEWORK` (token auth already present), `MEDIA_ROOT`.
-- `config/api_router.py` — register `resumes` + `compilations` viewsets and the `templates/` path.
+- `config/settings/base.py` — `LOCAL_APPS` (add `betterleaf.resumes`), `MEDIA_ROOT`.
+- `config/api_router.py` — register `resumes` + `compilations` viewsets and the `workspace/`, `templates/` paths.
+- `betterleaf/resumes/auth.py` + `permissions.py` — `get_workspace` resolution and the `HasWorkspace` permission that replaces `IsAuthenticated` on the resume/compilation endpoints.
 - `compose/local/django/Dockerfile` — Tectonic install (pinned 0.16.9 + SHA-256).
 - `compose/production/django/Dockerfile` — same Tectonic install in the `python-run-stage`.
 - `docker-compose.local.yml` — `TECTONIC_CACHE_DIR` env + `betterleaf_local_tectonic_cache` volume on the `django` anchor (reaches `celeryworker`).
@@ -348,15 +437,18 @@ EOF
 End-to-end (new behavior):
 
 1. `cd /home/vishesh/betterleaf/frontend && npm install && npm run dev` (proxies `/api` and `/media` to `localhost:8000`).
-2. Create a user via `docker compose -f docker-compose.local.yml exec django python manage.py createsuperuser` (or existing allauth signup), then log in at `http://localhost:3000/login` with that email + password.
+2. Open `http://localhost:3000/resumes` with no account. The SPA calls `GET /api/workspace/`, which creates an anonymous workspace and sets the `bl_session` cookie — no login appears.
 3. On `/resumes`, "New resume" → pick "Jake's Resume"; the editor opens with the seeded `main.tex` and, after the initial compile, a rendered PDF preview.
 4. Type a change in the editor (e.g. add `\item`) → within ~2 s the PDF preview updates to show it; the "compiling…" indicator appears and clears.
 5. Click "Download PDF" → a file `{slug}.pdf` downloads and opens as a valid PDF.
 6. Introduce a LaTeX error (e.g. `\invalid`) → the preview keeps the last good PDF, a stale indicator shows, and the log panel displays the Tectonic error output.
 
+(Account binding is out of scope for slice 1 and lands in slice 2 — there is no email+password sign-in and no attach endpoint in this slice.)
+
 ## Assumptions & contingencies
 
 - **Tectonic network on first compile**: Tectonic downloads its TeX bundle from its server on the first compile and caches it under `TECTONIC_CACHE_DIR`. If the Celery worker has no outbound network in a target environment, this fails; fallback: pre-download the bundle into a volume on a networked machine and mount it at `/tectonic-cache` before first use.
 - **Architecture**: the pinned asset/checksum are for `x86_64-unknown-linux-musl`. If a target runs `aarch64`, use the `aarch64-unknown-linux-musl` asset with SHA-256 `f9aa39017dbd51f111fdb93dda222178cbe51c8193508fc567b523cc74fff9c1` (from Oleafly's `scripts/fetch-tectonic.sh`).
-- **Token storage**: the SPA stores the DRF token in `localStorage` (acceptable for slice 1; revisit httpOnly-cookie auth if XSS hardening becomes a requirement).
+- **Token storage**: the anonymous workspace token lives in an httpOnly `bl_session` cookie (set by Django, not readable by JS). There is no signed-in account token in slice 1; when accounts arrive in slice 2 they authenticate via the Django session cookie (allauth), not a JS-readable token.
+- **Anonymous workspace expiry**: anonymous workspaces carry an `expires_at` (30 days) and are the visitor's only copy until attached; an expired workspace is orphaned (a cleanup job is a later slice).
 - **CORS**: none needed — the Next.js `rewrites` make `/api` and `/media` same-origin. If the frontend is instead deployed on a separate origin from Django, add `CORS_ALLOWED_ORIGINS` to `config/settings/local.py`/`production.py` and extend `CORS_URLS_REGEX` to also cover `^/media/.*$`.
