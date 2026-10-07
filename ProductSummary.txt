@@ -1,0 +1,8 @@
+BetterLeaf is a AI Assisted Latex Editor for Proffesional Resume Development
+
+Features
+1) Live Compile Latex
+2) Download PDF from Latex
+3) AI Edit
+4) JD Job Tailor
+5)Resume Upload ->extract->convert to latex
