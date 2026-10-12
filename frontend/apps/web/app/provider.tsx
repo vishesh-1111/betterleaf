@@ -1,16 +1,36 @@
 "use client";
 
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import {
+  AssistantChatTransport,
+  useChatRuntime,
+} from "@assistant-ui/react-ai-sdk";
 import { ThemeProvider } from "next-themes";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import type { ReactNode } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
+import { useDocumentStore } from "@/stores/document-store";
 
 export function RootProvider({ children }: { children: ReactNode }) {
   const runtime = useChatRuntime({
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+    transport: new AssistantChatTransport({
+      api: process.env.NEXT_PUBLIC_CHAT_API_URL ?? "/api/chat",
+      prepareSendMessagesRequest: async (opts) => {
+        const state = useDocumentStore.getState();
+        const activeFile = state.files.find((f) => f.id === state.activeFileId);
+        return {
+          ...opts,
+          body: {
+            ...opts.body,
+            resume_id: activeFile?.resumeId ?? undefined,
+            cursor: state.cursorPosition,
+            selection: state.selectionRange,
+          },
+        };
+      },
+    }),
   });
 
   useKeyboardShortcuts();

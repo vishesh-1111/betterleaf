@@ -5,13 +5,13 @@ import { Sidebar } from "./sidebar";
 import { LatexEditor } from "./editor/latex-editor";
 import { PdfPreview } from "./preview/pdf-preview";
 import { useProjectInit } from "@/hooks/use-project-init";
-import { useStorageReady } from "@/hooks/use-storage-ready";
+import { useDocumentStore } from "@/stores/document-store";
 
 export function WorkspaceLayout() {
-  const storageReady = useStorageReady();
   useProjectInit();
+  const initialized = useDocumentStore((s) => s.initialized);
 
-  if (!storageReady) {
+  if (!initialized) {
     return (
       <div className="flex h-full items-center justify-center">
         <div className="text-muted-foreground">Loading...</div>

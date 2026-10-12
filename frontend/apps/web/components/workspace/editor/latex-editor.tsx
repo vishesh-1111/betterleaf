@@ -32,7 +32,6 @@ import { compileLatex, type CompileResource } from "@/lib/latex-compiler";
 import { EditorToolbar } from "./editor-toolbar";
 import { AIDrawer } from "./ai-drawer";
 import { ImagePreview } from "./image-preview";
-import { LatexTools } from "./latex-tools";
 import { SearchPanel } from "./search-panel";
 
 interface StickyItem {
@@ -587,7 +586,6 @@ export function LatexEditor() {
         <div ref={containerRef} className="absolute inset-0" />
         <AIDrawer />
       </div>
-      <LatexTools />
     </div>
   );
 }

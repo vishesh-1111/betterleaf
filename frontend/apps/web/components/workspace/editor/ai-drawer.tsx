@@ -37,13 +37,12 @@ import "katex/dist/katex.min.css";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { cn } from "@/lib/utils";
 import { useDocumentStore } from "@/stores/document-store";
-import { useDocumentContext } from "@/hooks/use-document-context";
+import { getResume } from "@/lib/api";
 
 const MIN_HEIGHT = 150;
 const DEFAULT_HEIGHT = 180;
 
 export function AIDrawer() {
-  useDocumentContext();
   const threadRuntime = useThreadRuntime();
 
   const [isOpen, setIsOpen] = useState(false);
@@ -56,9 +55,11 @@ export function AIDrawer() {
   heightRef.current = height;
 
   useEffect(() => {
+    let wasRunning = false;
     return threadRuntime.subscribe(() => {
       const state = threadRuntime.getState();
       if (state.isRunning) {
+        wasRunning = true;
         setIsOpen(true);
         const parent = containerRef.current?.parentElement;
         const maxHeight = parent ? parent.clientHeight * 0.5 : 400;
@@ -67,6 +68,19 @@ export function AIDrawer() {
         if (panelRef.current) {
           panelRef.current.style.height = `${maxHeight}px`;
         }
+      } else if (wasRunning) {
+        wasRunning = false;
+        // A turn finished; Django executed any document tools, so re-read
+        // the active resume's main_tex to reflect server-side edits.
+        void (async () => {
+          const state = useDocumentStore.getState();
+          const activeFile = state.files.find(
+            (f) => f.id === state.activeFileId,
+          );
+          if (!activeFile?.resumeId) return;
+          const resume = await getResume(activeFile.resumeId);
+          state.updateFileContent(activeFile.id, resume.main_tex);
+        })();
       }
     });
   }, [threadRuntime]);

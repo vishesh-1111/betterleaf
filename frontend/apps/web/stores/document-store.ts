@@ -1,97 +1,6 @@
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
-import { indexedDBStorage } from "@/lib/storage/indexeddb-storage";
 
-const DEFAULT_TEX_CONTENT = `\\documentclass[11pt]{article}
-\\usepackage[margin=1in]{geometry}
-\\usepackage{amsmath}
-\\usepackage{graphicx}
-\\usepackage{tikz-cd}
-\\usepackage{multicol}
-
-\\setlength{\\parindent}{0pt}
-\\setlength{\\parskip}{1\\baselineskip}
-
-\\begin{document}
-
-\\section*{What is Open-Prism?}
-
-\\textbf{Open-Prism} is an AI-powered \\LaTeX{} editor for writing scientific documents. It features built-in AI assistance to help you draft and edit text, reason through ideas, and handle formatting.
-
-\\section*{Features}
-
-\\begin{multicols}{2}
-Open-Prism integrates AI directly in the editor with access to your project, so you can ask it to:
-
-\`\`Add the Laplace transform of $t\\cos(at)$ in the introduction.''
-\\[
-  \\mathcal{L}\\left\\{ t \\cos(a t) \\right\\} = \\frac{ s^2 - a^2 }{ (s^2 + a^2)^2 }
-\\]
-
-\`\`Add a 4\\,$\\times$\\,4 table in the results section.''
-\\begin{center}
-\\resizebox{0.5\\linewidth}{!}{%
-\\begin{tabular}{|c|c|c|c|}
-  \\hline
-  1 & 2 & 3 & 4 \\\\
-  \\hline
-  5 & 6 & 7 & 8 \\\\
-  \\hline
-  9 & 10 & 11 & 12 \\\\
-  \\hline
-  13 & 14 & 15 & 16 \\\\
-  \\hline
-\\end{tabular}%
-}
-\\end{center}
-
-\`\`Please proofread this section, flag any errors or logical gaps, and suggest improvements for clarity.''
-
-\`\`Am I missing corollaries or implications of Theorem 3.1? Are all bounds tight, or can some be relaxed?''
-
-\\columnbreak
-
-\`\`Write an abstract based on the rest of the paper.''
-
-\`\`Add references to my paper and suggest related work I may have missed.''
-
-\`\`Convert this hand-drawn diagram to \\LaTeX{}.''
-\\par\\noindent
-\\begin{minipage}[t]{0.49\\linewidth}
-  \\vspace{0pt}
-  \\centering
-  \\includegraphics[width=\\linewidth]{hand-write.jpg}
-\\end{minipage}\\hfill
-\\begin{minipage}[t]{0.49\\linewidth}
-  \\vspace{0pt}
-  \\centering
-  \\resizebox{\\linewidth}{!}{$
-    \\begin{tikzcd}[row sep=2em, column sep=1.5em, ampersand replacement=\\&]
-      E
-        \\arrow[dr, "e"']
-        \\arrow[drr, "p_2"]
-        \\arrow[ddr, "p_1"']
-      \\& \\& \\\\
-      \\& A \\times B \\arrow[r, "\\pi_2"'] \\arrow[d, "\\pi_1"] \\& B \\arrow[d, "g"] \\\\
-      \\& A \\arrow[r, "f"'] \\& C
-    \\end{tikzcd}
-  $}
-\\end{minipage}
-\\par
-
-\`\`Fill in all missing dependencies in my project.''
-
-\`\`Generate a 200-word summary for a general audience.''
-
-\`\`Create a Beamer presentation with each slide in a separate file.''
-\\end{multicols}
-
-\\section*{Getting Started}
-
-Press \\textbf{Enter} to compile your document. Use \\textbf{Shift+Enter} for a new line. The AI assistant panel at the bottom of the editor is ready to help with any \\LaTeX{} questions or tasks.
-
-\\end{document}
-`;
+import { createResume, deleteResume, patchResume } from "@/lib/api";
 
 export interface ProjectFile {
   id: string;
@@ -99,6 +8,7 @@ export interface ProjectFile {
   type: "tex" | "image";
   content?: string;
   dataUrl?: string;
+  resumeId?: string;
 }
 
 interface DocumentState {
@@ -145,171 +55,183 @@ function getActiveFile(state: { files: ProjectFile[]; activeFileId: string }) {
   return state.files.find((f) => f.id === state.activeFileId);
 }
 
-export const useDocumentStore = create<DocumentState>()(
-  persist(
-    (set, get) => ({
-      files: [
-        {
-          id: "default-tex",
-          name: "document.tex",
-          type: "tex",
-          content: DEFAULT_TEX_CONTENT,
-        },
-      ],
-      activeFileId: "default-tex",
-      cursorPosition: 0,
-      selectionRange: null,
-      jumpToPosition: null,
-      isThreadOpen: false,
-      pdfData: null,
-      compileError: null,
-      isCompiling: false,
-      isSaving: false,
-      initialized: false,
+const AUTOSAVE_MS = 800;
 
-      setActiveFile: (id) =>
-        set({ activeFileId: id, cursorPosition: 0, selectionRange: null }),
+const pendingSave: Record<string, number> = {};
 
-      setSelectionRange: (range) => set({ selectionRange: range }),
-
-      requestJumpToPosition: (position) => set({ jumpToPosition: position }),
-
-      clearJumpRequest: () => set({ jumpToPosition: null }),
-
-      addFile: (file) => {
-        const id = generateId();
-        set((state) => ({
-          files: [...state.files, { ...file, id }],
-          activeFileId: id,
+function scheduleSave(file: ProjectFile) {
+  if (file.type !== "tex") return;
+  clearTimeout(pendingSave[file.id]);
+  const timer = window.setTimeout(() => {
+    const state = useDocumentStore.getState();
+    const current = state.files.find((f) => f.id === file.id);
+    delete pendingSave[file.id];
+    if (!current || current.type !== "tex") return;
+    const content = current.content ?? "";
+    if (current.resumeId) {
+      void patchResume(current.resumeId, { main_tex: content });
+    } else {
+      void createResume(current.name, content).then((resume) => {
+        useDocumentStore.setState((s) => ({
+          files: s.files.map((f) =>
+            f.id === current.id ? { ...f, resumeId: resume.id } : f,
+          ),
         }));
-        return id;
-      },
+      });
+    }
+  }, AUTOSAVE_MS);
+  pendingSave[file.id] = timer;
+}
 
-      deleteFile: (id) => {
-        const state = get();
-        if (state.files.length <= 1) return;
-        const newFiles = state.files.filter((f) => f.id !== id);
-        const newActiveId =
-          state.activeFileId === id ? newFiles[0].id : state.activeFileId;
-        set({ files: newFiles, activeFileId: newActiveId });
-      },
+export const useDocumentStore = create<DocumentState>()((set, get) => ({
+  files: [],
+  activeFileId: "",
+  cursorPosition: 0,
+  selectionRange: null,
+  jumpToPosition: null,
+  isThreadOpen: false,
+  pdfData: null,
+  compileError: null,
+  isCompiling: false,
+  isSaving: false,
+  initialized: false,
 
-      renameFile: (id, name) => {
-        set((state) => ({
-          files: state.files.map((f) => (f.id === id ? { ...f, name } : f)),
-        }));
-      },
+  setActiveFile: (id) =>
+    set({ activeFileId: id, cursorPosition: 0, selectionRange: null }),
 
-      updateFileContent: (id, content) => {
-        set((state) => ({
-          files: state.files.map((f) => (f.id === id ? { ...f, content } : f)),
-        }));
-      },
+  setSelectionRange: (range) => set({ selectionRange: range }),
 
-      setThreadOpen: (open) => set({ isThreadOpen: open }),
+  requestJumpToPosition: (position) => set({ jumpToPosition: position }),
 
-      setPdfData: (data) => set({ pdfData: data, compileError: null }),
+  clearJumpRequest: () => set({ jumpToPosition: null }),
 
-      setCompileError: (error) => set({ compileError: error, pdfData: null }),
+  addFile: (file) => {
+    const id = generateId();
+    set((state) => ({
+      files: [...state.files, { ...file, id }],
+      activeFileId: id,
+    }));
+    return id;
+  },
 
-      setIsCompiling: (isCompiling) => set({ isCompiling }),
+  deleteFile: (id) => {
+    const state = get();
+    if (state.files.length <= 1) return;
+    const target = state.files.find((f) => f.id === id);
+    clearTimeout(pendingSave[id]);
+    delete pendingSave[id];
+    const newFiles = state.files.filter((f) => f.id !== id);
+    const newActiveId =
+      state.activeFileId === id ? newFiles[0].id : state.activeFileId;
+    set({ files: newFiles, activeFileId: newActiveId });
+    if (target?.resumeId) {
+      void deleteResume(target.resumeId);
+    }
+  },
 
-      setIsSaving: (isSaving) => set({ isSaving }),
+  renameFile: (id, name) => {
+    set((state) => ({
+      files: state.files.map((f) => (f.id === id ? { ...f, name } : f)),
+    }));
+    const current = get().files.find((f) => f.id === id);
+    if (current?.resumeId) {
+      void patchResume(current.resumeId, { title: name });
+    }
+  },
 
-      setCursorPosition: (position) => set({ cursorPosition: position }),
+  updateFileContent: (id, content) => {
+    set((state) => ({
+      files: state.files.map((f) => (f.id === id ? { ...f, content } : f)),
+    }));
+  },
 
-      insertAtCursor: (text) => {
-        const state = get();
-        const activeFile = getActiveFile(state);
-        if (!activeFile || activeFile.type !== "tex") return;
+  setThreadOpen: (open) => set({ isThreadOpen: open }),
 
-        const content = activeFile.content ?? "";
-        const { cursorPosition } = state;
-        const newContent =
-          content.slice(0, cursorPosition) +
-          text +
-          content.slice(cursorPosition);
+  setPdfData: (data) => set({ pdfData: data, compileError: null }),
 
-        set({
-          files: state.files.map((f) =>
-            f.id === activeFile.id ? { ...f, content: newContent } : f,
-          ),
-          cursorPosition: cursorPosition + text.length,
-        });
-      },
+  setCompileError: (error) => set({ compileError: error, pdfData: null }),
 
-      replaceSelection: (start, end, text) => {
-        const state = get();
-        const activeFile = getActiveFile(state);
-        if (!activeFile || activeFile.type !== "tex") return;
+  setIsCompiling: (isCompiling) => set({ isCompiling }),
 
-        const content = activeFile.content ?? "";
-        const newContent = content.slice(0, start) + text + content.slice(end);
+  setIsSaving: (isSaving) => set({ isSaving }),
 
-        set({
-          files: state.files.map((f) =>
-            f.id === activeFile.id ? { ...f, content: newContent } : f,
-          ),
-          cursorPosition: start + text.length,
-        });
-      },
+  setCursorPosition: (position) => set({ cursorPosition: position }),
 
-      findAndReplace: (find, replace) => {
-        const state = get();
-        const activeFile = getActiveFile(state);
-        if (!activeFile || activeFile.type !== "tex") return false;
+  insertAtCursor: (text) => {
+    const state = get();
+    const activeFile = getActiveFile(state);
+    if (!activeFile || activeFile.type !== "tex") return;
 
-        const content = activeFile.content ?? "";
-        if (!content.includes(find)) return false;
+    const content = activeFile.content ?? "";
+    const { cursorPosition } = state;
+    const newContent =
+      content.slice(0, cursorPosition) + text + content.slice(cursorPosition);
 
-        const newContent = content.replace(find, replace);
-        set({
-          files: state.files.map((f) =>
-            f.id === activeFile.id ? { ...f, content: newContent } : f,
-          ),
-        });
-        return true;
-      },
+    set({
+      files: state.files.map((f) =>
+        f.id === activeFile.id ? { ...f, content: newContent } : f,
+      ),
+      cursorPosition: cursorPosition + text.length,
+    });
+    scheduleSave({ ...activeFile, content: newContent });
+  },
 
-      setInitialized: () => set({ initialized: true }),
+  replaceSelection: (start, end, text) => {
+    const state = get();
+    const activeFile = getActiveFile(state);
+    if (!activeFile || activeFile.type !== "tex") return;
 
-      setFileName: (name) => {
-        const state = get();
-        set({
-          files: state.files.map((f) =>
-            f.id === state.activeFileId ? { ...f, name } : f,
-          ),
-        });
-      },
+    const content = activeFile.content ?? "";
+    const newContent = content.slice(0, start) + text + content.slice(end);
 
-      setContent: (content) => {
-        const state = get();
-        set({
-          files: state.files.map((f) =>
-            f.id === state.activeFileId ? { ...f, content } : f,
-          ),
-        });
-      },
-    }),
-    {
-      name: "open-prism-document",
-      storage: createJSONStorage(() => indexedDBStorage),
-      partialize: (state) => ({
-        files: state.files,
-        activeFileId: state.activeFileId,
-        pdfData: state.pdfData,
-      }),
-      merge: (persisted, current) => {
-        const merged = { ...current, ...(persisted as object) };
-        const files = merged.files as ProjectFile[];
-        const docTex = files.find((f) => f.name === "document.tex");
-        if (docTex) {
-          merged.activeFileId = docTex.id;
-        } else if (files.length > 0) {
-          merged.activeFileId = files[0].id;
-        }
-        return merged;
-      },
-    },
-  ),
-);
+    set({
+      files: state.files.map((f) =>
+        f.id === activeFile.id ? { ...f, content: newContent } : f,
+      ),
+      cursorPosition: start + text.length,
+    });
+    scheduleSave({ ...activeFile, content: newContent });
+  },
+
+  findAndReplace: (find, replace) => {
+    const state = get();
+    const activeFile = getActiveFile(state);
+    if (!activeFile || activeFile.type !== "tex") return false;
+
+    const content = activeFile.content ?? "";
+    if (!content.includes(find)) return false;
+
+    const newContent = content.replace(find, replace);
+    set({
+      files: state.files.map((f) =>
+        f.id === activeFile.id ? { ...f, content: newContent } : f,
+      ),
+    });
+    scheduleSave({ ...activeFile, content: newContent });
+    return true;
+  },
+
+  setInitialized: () => set({ initialized: true }),
+
+  setFileName: (name) => {
+    const state = get();
+    set({
+      files: state.files.map((f) =>
+        f.id === state.activeFileId ? { ...f, name } : f,
+      ),
+    });
+  },
+
+  setContent: (content) => {
+    const state = get();
+    const activeFile = getActiveFile(state);
+    set({
+      files: state.files.map((f) =>
+        f.id === state.activeFileId ? { ...f, content } : f,
+      ),
+    });
+    if (activeFile) {
+      scheduleSave({ ...activeFile, content });
+    }
+  },
+}));
