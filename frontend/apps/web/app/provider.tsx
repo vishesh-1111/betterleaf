@@ -16,7 +16,7 @@ export function RootProvider({ children }: { children: ReactNode }) {
   const runtime = useChatRuntime({
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
     transport: new AssistantChatTransport({
-      api: process.env.NEXT_PUBLIC_CHAT_API_URL ?? "/api/chat",
+      api: process.env.NEXT_PUBLIC_CHAT_API_URL ?? `${process.env.NEXT_PUBLIC_API_URL}/api/chat/`,
       prepareSendMessagesRequest: async (opts) => {
         const state = useDocumentStore.getState();
         const activeFile = state.files.find((f) => f.id === state.activeFileId);
