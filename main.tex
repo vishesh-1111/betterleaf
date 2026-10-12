@@ -1,0 +1,165 @@
+%------------------------
+% Modern Resume Template - Enhanced Version
+% Author : Vishesh Gautam
+%------------------------
+
+\documentclass[a4paper,12pt]{article}
+\usepackage{latexsym}
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{marvosym}
+\usepackage[usenames,dvipsnames]{color}
+\usepackage{verbatim}
+\usepackage{enumitem}
+\usepackage[pdftex]{hyperref}
+\usepackage{fancyhdr}
+\usepackage{fontawesome}
+\usepackage[charter]{mathdesign}
+\usepackage{xcolor}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+\addtolength{\oddsidemargin}{-0.5in}
+\addtolength{\evensidemargin}{-0.5in}
+\addtolength{\textwidth}{1in}
+\addtolength{\topmargin}{-.5in}
+\addtolength{\textheight}{1.0in}
+
+\urlstyle{same}
+
+\raggedbottom
+\raggedright
+\setlength{\tabcolsep}{0in}
+
+\definecolor{primarycolor}{RGB}{0, 0, 0}
+\definecolor{accentcolor}{RGB}{0, 0, 0}
+
+\titleformat{\section}{
+  \vspace{-8pt}\scshape\raggedright\large\color{primarycolor}
+}{}{0em}{}[\color{primarycolor}\titlerule \vspace{-5pt}]
+
+%-------------------------
+% Custom commands
+\newcommand{\resumeItem}[1]{
+  \item\small{#1 \vspace{-2pt}}
+}
+
+\newcommand{\resumeSubheading}[4]{
+  \vspace{-1pt}\item
+    \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+      \textbf{\color{accentcolor}#1} & \textit{\small #2} \\
+      \textit{\small#3} & \textit{\small #4} \\
+    \end{tabular*}\vspace{-5pt}
+}
+
+\newcommand{\resumeProjectHeading}[2]{
+    \item
+    \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+      \small\textbf{\color{accentcolor}#1} & \textit{\small #2}
+    \end{tabular*}\vspace{-5pt}
+}
+
+\newcommand{\resumeSubItem}[1]{\resumeItem{#1}\vspace{-3pt}}
+
+\renewcommand{\labelitemii}{$\vcenter{\hbox{\tiny$\bullet$}}$}
+
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+\newcommand{\resumeItemListStart}{\begin{itemize}[leftmargin=0.15in]}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{-5pt}}
+
+%-----------------------------
+%%%%%%  CV STARTS HERE  %%%%%%
+
+\begin{document}
+
+%----------HEADING-----------------
+\begin{center}
+    \textbf{\Huge Vishesh Kumar Gautam} \\ \vspace{8pt}
+    \small
+    \faPhone\ +91-9691168327 $|$
+    \href{mailto:visheshgautam.official@gmail.com}{\faEnvelope\ visheshgautam.official@gmail.com} $|$
+    \href{https://www.linkedin.com/in/vishesh-kumar-gautam-206216290}{\faLinkedin\ LinkedIn} $|$
+    \href{https://github.com/vishesh-1111}{\faGithub\ vishesh-1111} $|$
+    \href{https://portfolio-vishesh-2004.vercel.app/}{\faGlobe\ Portfolio}
+\end{center}
+
+%-----------EXPERIENCE-----------------
+\section{Experience}
+  \resumeSubHeadingListStart
+
+    \resumeSubheading
+      {AI Systems Engineer Intern }{Oct 2025 -- Present}
+      {\href{https://getsenda.com/}{Senda}}{Remote}
+      \resumeItemListStart
+\resumeItem{Architected a Django-based distributed workflow platform using \textbf{Celery}, \textbf{Redis}, and \textbf{LangGraph} to orchestrate parallel data ingestion, analysis, and report generation pipelines, reducing portfolio report turnaround from \textbf{3--4 hours to under 60 seconds}.}
+\resumeItem{Designed a \textbf{monthly Apache Iceberg partitioning strategy on AWS S3} for \textbf{20+ years of financial data}, reducing partitions from \textbf{7,000+ daily to \textasciitilde240 monthly} (\textbf{\textasciitilde97\% reduction}) while lowering metadata overhead and preserving month-range pruning.}
+\resumeItem{Engineered a Kafka-based ETL pipeline ingesting large-scale financial datasets into \textbf{MinIO} object storage, processing data across \textbf{30+ topics and 1000+ partitions} to support downstream analytics and AI workloads.}
+
+\resumeItemListEnd
+
+\resumeSubheading
+  {ML Engineer Intern}{Apr 2025 -- Jul 2025}
+  {\href{https://attestr.com/}{Attestr}}{Remote}
+  \resumeItemListStart
+\resumeItem{Developed and fine-tuned a \textbf{DeePixBiS}-based passive face liveness (anti-spoofing) model for KYC verification, trained on approximately \textbf{20K images}, achieving \textbf{92\% validation accuracy} under data-constrained conditions, and deployed optimized \textbf{ONNX Runtime} inference endpoints on \textbf{Hugging Face} for real-time evaluation.}
+\resumeItem{Built observability and performance monitoring dashboards with \textbf{Prometheus} and \textbf{Grafana} for an ONNX Runtime-based liveness detection service, analyzing inference latency across \textbf{1,000+ requests} and validating \textbf{p99 response times under 1 second}.}
+
+
+  \resumeItemListEnd
+
+
+  \resumeSubHeadingListEnd
+
+%-----------PROJECTS-----------------
+\section{Featured Projects}
+  \resumeSubHeadingListStart
+    \resumeProjectHeading
+        {\href{https://meruem-v4.vercel.app}{\underline{Meruem -- AI-Powered Data Analysis Platform} \faExternalLink}}{Next.js, FastAPI, MongoDB}
+        \resumeItemListStart
+          \resumeItem{Built an enterprise-grade data analysis automation platform that securely connects to private databases and delivers insights and visualizations without requiring manual SQL queries.}
+          \resumeItem{Implemented workspace collaboration with role-based access control, enabling teams to share analytical findings while preserving strict data confidentiality.}
+   \resumeItem{\textbf{Impact:} Reduced analysis turnaround time from \textbf{hours} to \textbf{minutes}.}
+
+          \resumeItem{\textbf{Source Code:} \href{https://github.com/vishesh-1111/Meruem_V4}{\underline{GitHub Repository}}}
+        \resumeItemListEnd
+  \resumeSubHeadingListEnd
+
+
+%-----------TECHNICAL SKILLS-----------------
+\section{Technical Skills}
+\begin{itemize}[leftmargin=0.15in, label={}]
+    \small{\item{
+\textbf{Languages}{: C++, C, Python, TypeScript, JavaScript, SQL}\\
+\textbf{AI/ML}{: Generative AI, Agentic AI, RAG,ONNX Runtime, Transformers, LangGraph, MCP, Computer Vision}\\
+\textbf{Systems \& Tooling}{: Linux, Windows, GCC, CMake, Git}\\
+\textbf{Backend \& APIs}{: Django, FastAPI, Node.js, Express.js, Celery, Redis} \\
+\textbf{Cloud, Infrastructure \& Data}{: AWS, Docker, Kafka, Apache Iceberg, MinIO, PostgreSQL, MongoDB, Git} \\
+\textbf{Observability}{: Prometheus, Grafana, LangSmith, Langfuse} \\
+    }}
+\end{itemize}
+
+%-----------EDUCATION-----------------
+\section{Education}
+  \resumeSubHeadingListStart
+    \resumeSubheading
+      {Dayananda Sagar College of Engineering}{Bangalore, India}
+      {Bachelor of Engineering in Computer Science}{2022 -- 2026}
+  \resumeSubHeadingListEnd
+
+%-----------ACHIEVEMENTS-----------------
+\section{Achievements \& Recognition}
+  \resumeSubHeadingListStart
+    \resumeProjectHeading
+        {\href{https://codeforces.com/profile/visheshgautam.official}{Competitive Programming}}{CodeForces}
+        \resumeItemListStart
+          \resumeItem{Specialist (\textbf{Max Rating: 1436}) on Codeforces, solving algorithmic and data-structure problems primarily using \textbf{C++}.}
+          \resumeItem{Ranked \textbf{Global 279} among 25,000+ participants in CodeChef Starters 119 (2025)}
+        \resumeItemListEnd
+  \resumeSubHeadingListEnd
+
+\end{document}

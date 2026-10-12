@@ -1,36 +1,91 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Open-Prism
 
-## Getting Started
+Open-source AI-powered LaTeX writing workspace with live preview.
 
-First, run the development server:
+![Open-Prism Screenshot](./assets/OpenPrism.png)
+
+## Features
+
+- **AI-Assisted Writing** - Powered by assistant-ui for intelligent LaTeX assistance
+- **Live PDF Preview** - Real-time compilation and preview of your documents
+- **CodeMirror Editor** - Syntax highlighting and LaTeX language support
+- **Local Storage** - Documents saved in browser IndexedDB
+- **Dark/Light Theme** - Automatic theme switching support
+
+## Quick Start
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# Clone the repository
+git clone https://github.com/assistant-ui/open-prism.git
+cd open-prism
+
+# Install dependencies
+pnpm install
+
+# Copy environment variables
+cp apps/web/.env.example apps/web/.env.local
+
+# Configure your environment variables in apps/web/.env.local
+# - OPENAI_API_KEY: Your OpenAI API key
+# - LATEX_API_URL: URL to the LaTeX compilation service
+# - KV_REST_API_URL: KV REST API URL (for rate limiting)
+# - KV_REST_API_TOKEN: KV REST API token
+
+# Start development server
+pnpm dev:web
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Project Structure
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+open-prism/
+├── apps/
+│   ├── web/          # Next.js frontend application
+│   └── latex-api/    # LaTeX compilation API (Hono + TeX Live)
+├── packages/         # Shared packages (if any)
+├── biome.json        # Biome linter configuration
+└── turbo.json        # Turborepo configuration
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### apps/web
 
-## Learn More
+Next.js 16 application with:
+- assistant-ui for AI chat interface
+- CodeMirror for LaTeX editing
+- react-pdf for PDF preview
+- Upstash Redis for rate limiting
 
-To learn more about Next.js, take a look at the following resources:
+### apps/latex-api
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Hono-based API for LaTeX compilation:
+- Accepts LaTeX source code
+- Compiles using TeX Live (pdflatex)
+- Returns compiled PDF
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Deployment
 
-## Deploy on Vercel
+### Web App (Vercel)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+1. Import the repository to Vercel
+2. Set root directory to `apps/web`
+3. Configure environment variables:
+   - `OPENAI_API_KEY`
+   - `LATEX_API_URL`
+   - `KV_REST_API_URL`
+   - `KV_REST_API_TOKEN`
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### LaTeX API (Docker)
+
+```bash
+cd apps/latex-api
+docker build -t open-prism-latex-api .
+docker run -p 3001:3001 open-prism-latex-api
+```
+
+## Contributing
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for development setup and contribution guidelines.
+
+## License
+
+[MIT](./LICENSE)

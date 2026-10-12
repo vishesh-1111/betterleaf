@@ -4,21 +4,21 @@
 
 A visitor arrives with no account and starts editing (slice 1 gives them a guest workspace in a cookie). Later they click **"Sign in with Google"**. When that finishes, their guest work — the resumes they already made — automatically becomes attached to their new (or existing) account. Nothing is lost, and nothing is copied.
 
-There is **no email+password sign-in** anywhere. Google is the only way to sign in. django-allauth handles the entire Google dance and creates the account for us — we never build a login form or create the user ourselves.
+ Google is the only way to sign in. django-allauth handles the entire Google dance and creates the account for us — we never build a login form or create the user ourselves.
 
 ## The whole flow, one step at a time
 
-1. **Guest arrives.** Slice 1's `GET /api/workspace/` creates/returns the guest workspace. We add one line: `request.session["guest_workspace_id"] = str(ws.id)` — "remember this guest's workspace on the server." Here's the crucial part about how sessions work: the workspace ID is stored **server-side in the session store**, and the browser gets only an opaque `sessionid` cookie — a random key it sends back on every request so Django can look the session up. The browser never sees the workspace ID itself, and the workspace ID never appears in any URL (including Google's).
+1. **Guest arrives.** Slice 1's `GET /api/workspace/` creates/returns the guest workspace. We add one line: `request.session["guest_workspace_id"] = str(ws.id)` — "remember this guest's workspace on the server." The workspace ID is stored **server-side in the Django session**, never handed to the browser to send back later, and never baked into Google's URL.
 2. **Guest clicks "Sign in with Google."** This is a normal browser navigation (a plain link or form) to `/accounts/google/login/`, then over to Google. Not `fetch`/AJAX — the OAuth flow needs a real page load.
 3. **Google sends them back** to `/accounts/google/login/callback/` on our backend. allauth takes over: it checks the `state` token (its own anti-forgery ID), swaps the code for tokens, reads the Google profile, and — if this is a brand-new Google account — **creates the user**; if they've signed in before, it finds the existing user.
 4. **allauth logs them in**, which sets the browser's `sessionid` cookie (this is the entire "who is logged in" mechanism — no custom `user_id` cookie, no token).
-5. **Our hook fires at the moment of login.** When allauth logs someone in, it sends a `user_logged_in` signal. We listen for it: read the stored `guest_workspace_id` out of the session, attach that workspace to the now-known user, and erase the note so it can't be used twice.
+5. **Our hook fires at the moment of login.** The moment Django logs someone in, it emits a "user logged in" signal. We listen for it: read the stored `guest_workspace_id` out of the session, attach that workspace to the now-known user, and erase the note so it can't be used twice.
 6. **allauth redirects** to the frontend (`/resumes`). From here on, the backend decides "which workspace" by looking at the logged-in user — never by trusting an ID the browser sends.
 
 ## Ground rules (fixed — do not deviate)
 
 - **allauth owns user creation and login.** We never hand-roll OAuth, never write a login form, never create the `User` ourselves, never call `login()` ourselves.
-- **The guest workspace ID lives in the server-side session data** (`request.session["guest_workspace_id"]`), not in any cookie the client can read or set, and not in the `state` parameter. The browser's only involvement is the opaque `sessionid` key it carries so Django can load the session — the client can't put a workspace ID anywhere Django would trust for this. The `state` stays allauth's own random ID.
+- **The guest workspace ID lives in the server-side session** (`request.session["guest_workspace_id"]`). Never in a browser-set cookie, never in the `state` parameter. The `state` stays allauth's own random ID.
 - **"Who is logged in" is the `sessionid` cookie** set by `login()`. No `user_id` cookie, no client token in this flow.
 - **After login, the workspace always comes from the logged-in user**, never from a client-sent ID.
 
@@ -66,7 +66,7 @@ from betterleaf.resumes.models import Workspace
 
 
 @receiver(user_logged_in)
-def claim_guest_workspace(request, user, **kwargs):
+def claim_guest_workspace(sender, request, user, **kwargs):
     ws_id = request.session.pop("guest_workspace_id", None)
     if not ws_id:
         return
@@ -83,14 +83,14 @@ def claim_guest_workspace(request, user, **kwargs):
             ws.save(update_fields=["user", "anonymous_token_hash", "expires_at"])
 ```
 
-This is allauth's built-in `user_logged_in` signal, documented at docs.allauth.org — *"Sent when a user logs in."* It fires on the Google login (and any other login) after allauth has created and logged in the user, so `user` is a fully-saved account by the time we touch it. That's the whole mechanism — no earlier hook, no extra wiring.
-
 Why this is safe:
 
-- **Only source of truth is the server-side session.** We read `request.session`, never an ID the client hands over directly (query string, body, or a cookie it sets).
-- **Single-use.** `pop` removes the ID as it reads it, so it can only be claimed once.
-- **Race-proof.** `select_for_update()` locks the row; combined with `user__isnull=True`, two simultaneous logins can't both grab the same workspace.
-- **Harmless on bad input.** Missing/garbage session value → `pop` returns `None` or the filter matches nothing → no-op.
+- **Only source of truth is the session.** We read `request.session`, never anything the browser sent (query string, body, cookie).
+- **Single-use.** `pop` removes the ID as it reads it, so it can only ever be claimed once.
+- **Race-proof.** `select_for_update()` locks the row; combined with the `user__isnull=True` filter, two simultaneous logins can't both grab the same workspace — one wins, the second sees it's already owned and skips.
+- **Harmless on bad input.** Missing or garbage session value → `pop` returns `None` or the filter matches nothing → no-op, no error.
+
+**Why the "user logged in" hook and not an earlier one:** a brand-new user doesn't exist until allauth saves them. The earlier `pre_social_login` hook runs *before* that save, so `user` has no ID yet and we couldn't attach anything. The `user_logged_in` signal fires *after* allauth has both created and logged in the user — so it covers new signups and returning users with one path.
 
 ### 3. Leave user creation alone
 
@@ -127,7 +127,7 @@ Slice 1's `get_workspace` already resolves "the signed-in user's workspace" (`Wo
 | `CSRF_TRUSTED_ORIGINS` | only if the SPA is a separate origin | trusts the SPA origin for unsafe requests. |
 | CORS | none needed (slice 1's `rewrites` already proxy `/api`+`/media`) | only relevant for a separate-origin frontend, which is not our setup. |
 | Google redirect URI | `https://<backend-host>/accounts/google/login/callback/` | registered in the Google Cloud Console OAuth client. |
-| `ACCOUNT_EMAIL_VERIFICATION` | `mandatory` (already set) | Google's email is pre-verified, so Google sign-ins skip the verification step and log in immediately — `user_logged_in` fires right away. (This setting only bites for the email+password path, which we don't have.) |
+| `ACCOUNT_EMAIL_VERIFICATION` | `mandatory` (already set) | new Google users must verify email before `login()` completes; the session (and thus the pending claim) survives that detour. Confirm the verification redirect chain does not clear the session. |
 
 ## Security checklist (what the code guarantees)
 
@@ -173,6 +173,6 @@ If the SPA ever runs on a genuinely different site from the backend (so the sess
 
 ## Assumptions & contingencies
 
-- **Email verification:** Google supplies a pre-verified email, so `ACCOUNT_EMAIL_VERIFICATION = "mandatory"` does not block Google sign-in — the user is logged in (and the claim fires) immediately, no verification detour. That setting only affects the email+password path, which doesn't exist here.
+- **Email verification detour:** with `ACCOUNT_EMAIL_VERIFICATION = "mandatory"`, a first-time Google user must verify email before `login()` completes. The session (holding `guest_workspace_id`) survives that redirect, so the claim fires only after verification. If the verification endpoints are configured to flush the session, this breaks — confirm they reuse the same `sessionid` and don't clear it. (In local dev, use the console email backend so the verification link is reachable.)
 - **`SOCIALACCOUNT_AUTO_SIGNUP` stays `True`.** Even if a later slice demands a signup form, the claim still works — `user_logged_in` fires after the form finishes, and the session survives.
 - **Same-site assumption** holds via slice 1's `rewrites`. A cross-site deployment needs the fallback (state→workspace mapping) plus CORS / `CSRF_TRUSTED_ORIGINS` / `SESSION_COOKIE_SAMESITE="None"`.
