@@ -5,8 +5,6 @@ volumes:
 
   production_redis_data: {}
 
-  production_tectonic_cache: {}
-
 
 services:
   django: &django
@@ -18,10 +16,6 @@ services:
     depends_on:
       - postgres
       - redis
-    volumes:
-      - production_tectonic_cache:/tectonic-cache
-    environment:
-      TECTONIC_CACHE_DIR: /tectonic-cache
     env_file:
       - ./.envs/.production/.django
       - ./.envs/.production/.postgres
