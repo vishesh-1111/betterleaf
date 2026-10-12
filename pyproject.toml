@@ -33,6 +33,7 @@ dependencies = [
   "httpx==0.28.1",
   "hiredis==3.4.2",
   "pillow==12.3.0",
+  "pyjwt[crypto]==2.11.0",
   "psycopg[c]==3.3.6",
   "python-slugify==9.1.2",
   "redis==8.1.0",
