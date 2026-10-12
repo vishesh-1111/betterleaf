@@ -17,6 +17,13 @@ export function RootProvider({ children }: { children: ReactNode }) {
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
     transport: new AssistantChatTransport({
       api: process.env.NEXT_PUBLIC_CHAT_API_URL ?? `${process.env.NEXT_PUBLIC_API_URL}/api/chat/`,
+      credentials: "include",
+      headers: () => {
+        const match = document.cookie
+          .split("; ")
+          .find((c) => c.startsWith("csrftoken="));
+        return { "X-CSRFToken": match?.slice("csrftoken=".length) ?? "" };
+      },
       prepareSendMessagesRequest: async (opts) => {
         const state = useDocumentStore.getState();
         const activeFile = state.files.find((f) => f.id === state.activeFileId);
