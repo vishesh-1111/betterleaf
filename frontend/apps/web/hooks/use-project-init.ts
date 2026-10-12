@@ -2,12 +2,7 @@
 
 import { useEffect } from "react";
 import { useDocumentStore } from "@/stores/document-store";
-import {
-  createResume,
-  ensureWorkspace,
-  listResumes,
-  resumeToFile,
-} from "@/lib/api";
+import { createResume, getWorkspace, resumeToFile } from "@/lib/api";
 import { DEFAULT_TEX_CONTENT } from "@/lib/default-document";
 
 const DEFAULT_IMAGE_FILE = {
@@ -36,10 +31,10 @@ export function useProjectInit() {
 
     (async () => {
       // Establish (or reuse) the workspace so the `bl_session` cookie is set
-      // and the editor maps to a real Django workspace.
-      await ensureWorkspace();
+      // and fetch all of its resumes in one call.
+      const workspace = await getWorkspace();
 
-      let resumes = await listResumes();
+      let resumes = workspace.resumes;
 
       if (resumes.length === 0) {
         const created = await createResume("document.tex", DEFAULT_TEX_CONTENT);

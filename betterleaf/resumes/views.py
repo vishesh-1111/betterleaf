@@ -27,21 +27,24 @@ class WorkspaceView(APIView):
 
     def get(self, request):
         workspace = get_workspace(request)
-        if workspace is not None:
-            data = {
-                "workspace_id": str(workspace.id),
-                "anonymous": workspace.user_id is None,
-            }
+        created = workspace is None
+        if workspace is None:
+            raw, token_hash = new_anonymous_token()
+            workspace = Workspace.objects.create(
+                anonymous_token_hash=token_hash,
+                expires_at=timezone.now() + ANONYMOUS_WORKSPACE_TTL,
+            )
+        resumes = ResumeListSerializer(
+            Resume.objects.filter(workspace=workspace), many=True,
+        ).data
+        data = {
+            "workspace_id": str(workspace.id),
+            "anonymous": workspace.user_id is None,
+            "resumes": resumes,
+        }
+        if not created:
             return Response(data)
-        raw, token_hash = new_anonymous_token()
-        workspace = Workspace.objects.create(
-            anonymous_token_hash=token_hash,
-            expires_at=timezone.now() + ANONYMOUS_WORKSPACE_TTL,
-        )
-        response = Response(
-            {"workspace_id": str(workspace.id), "anonymous": True},
-            status=status.HTTP_201_CREATED,
-        )
+        response = Response(data, status=status.HTTP_201_CREATED)
         response.set_cookie(
             "bl_session",
             raw,

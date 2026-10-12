@@ -30,14 +30,16 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
-/** Establish (or reuse) the anonymous/signed-in workspace; returns its id. */
-export async function ensureWorkspace(): Promise<string> {
-  const data = await request<{ workspace_id: string }>("workspace/");
-  return data.workspace_id;
+export interface WorkspaceDto {
+  workspace_id: string;
+  anonymous: boolean;
+  resumes: ResumeDto[];
 }
 
-export async function listResumes(): Promise<ResumeDto[]> {
-  return request<ResumeDto[]>("resumes/");
+/** Fetch the workspace (creating + setting the cookie if none exists) and all
+ * of its resumes in a single request. */
+export async function getWorkspace(): Promise<WorkspaceDto> {
+  return request<WorkspaceDto>("workspace/");
 }
 
 export async function createResume(
