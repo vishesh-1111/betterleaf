@@ -84,3 +84,14 @@ services:
     ports:
       - '5555:5555'
     command: /start-flower
+
+  latex:
+    image: texlive/texlive:latest        # full scheme; pin e.g. a dated tag for reproducibility
+    working_dir: /workdir
+    volumes:
+      - ./:/workdir
+      - ./compose/local/latex-server:/latex-server:ro
+    user: "${UID:-1000}:${GID:-1000}"    # output files owned by you, not root
+    command: ["python3", "/latex-server/server.py"]
+    ports:
+      - "7030:7030"
