@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.urls import include
 from django.urls import path
 from rest_framework.routers import DefaultRouter
 from rest_framework.routers import SimpleRouter
@@ -21,4 +22,5 @@ urlpatterns = [
     *router.urls,
     path("workspace/", WorkspaceView.as_view(), name="workspace"),
     path("templates/", TemplateListView.as_view(), name="template-list"),
+    path("chat/", include("betterleaf.chat.urls")),
 ]
