@@ -74,6 +74,33 @@ export async function deleteResume(id: string): Promise<void> {
   await request<void>(`resumes/${id}/`, { method: "DELETE" });
 }
 
+export interface AuthStatus {
+  authenticated: boolean;
+}
+
+/** Check whether the current session is authenticated with Django.
+
+ * Always resolves to a boolean; the endpoint returns 200 for both states. */
+export async function checkAuthentication(): Promise<boolean> {
+  const res = await fetch(apiUrl("users/auth-status/"), {
+    credentials: "include",
+  });
+  if (!res.ok) {
+    // Network or server error: treat as unauthenticated so the user is
+    // safely sent through the login flow rather than blocked.
+    return false;
+  }
+  const data = (await res.json()) as AuthStatus;
+  return data.authenticated === true;
+}
+
+/** Absolute URL that starts the Django Google OAuth flow and returns to the
+ * current page with `?download=true` so the download can resume. */
+export function googleLoginUrl(): string {
+  const next = encodeURIComponent(`${window.location.origin}/?download=true`);
+  return `${API_BASE}/accounts/google/login/?next=${next}`;
+}
+
 /** Map a Django resume into an editor file, assigning resumeId. */
 export function resumeToFile(resume: ResumeDto): ProjectFile {
   return {

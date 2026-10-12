@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useDocumentStore, type ProjectFile } from "@/stores/document-store";
 import { Button } from "@/components/ui/button";
+import { checkAuthentication, googleLoginUrl } from "@/lib/api";
 import {
   Select,
   SelectContent,
@@ -74,8 +75,7 @@ export function PdfPreview() {
   const setIsCompiling = useDocumentStore((s) => s.setIsCompiling);
   const files = useDocumentStore((s) => s.files);
   const activeFileId = useDocumentStore((s) => s.activeFileId);
-  const content =
-    files.find((f) => f.id === activeFileId)?.content ?? "";
+  const content = files.find((f) => f.id === activeFileId)?.content ?? "";
   const requestJumpToPosition = useDocumentStore(
     (s) => s.requestJumpToPosition,
   );
@@ -162,6 +162,64 @@ export function PdfPreview() {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
+
+  // Auth-gated download entry point: if authenticated, download immediately;
+  // otherwise kick off the Google OAuth flow and resume on return.
+  const handleDownloadClick = async () => {
+    if (await checkAuthentication()) {
+      handleDownload();
+      return;
+    }
+    window.location.href = googleLoginUrl();
+  };
+
+  // Resume a download that was interrupted by the OAuth redirect. After
+  // Django logs the user in it redirects back with `?download=true`; the
+  // in-memory PDF is gone, so we recompile before downloading. We wait for
+  // project init so the files are loaded from the backend first.
+  useEffect(() => {
+    if (!initialized) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("download") !== "true") return;
+
+    // Remove the flag immediately so refreshes don't re-trigger a download.
+    const url = new URL(window.location.href);
+    url.searchParams.delete("download");
+    window.history.replaceState({}, "", url.toString());
+
+    (async () => {
+      if (!(await checkAuthentication())) return;
+
+      let data = useDocumentStore.getState().pdfData;
+      if (!data) {
+        const currentFiles = useDocumentStore.getState().files;
+        setIsCompiling(true);
+        try {
+          data = await compileLatex(gatherResources(currentFiles));
+          setPdfData(data);
+        } catch (error) {
+          setCompileError(
+            error instanceof Error ? error.message : "Compilation failed",
+          );
+          return;
+        } finally {
+          setIsCompiling(false);
+        }
+      }
+
+      const blob = new Blob([new Uint8Array(data)], {
+        type: "application/pdf",
+      });
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = objectUrl;
+      a.download = "document.pdf";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(objectUrl);
+    })();
+  }, [initialized, setIsCompiling, setPdfData, setCompileError]);
 
   const handleLoadSuccess = (pages: number) => {
     setNumPages(pages);
@@ -333,7 +391,7 @@ export function PdfPreview() {
               variant="ghost"
               size="icon"
               className="size-6"
-              onClick={handleDownload}
+              onClick={handleDownloadClick}
               title="Download PDF"
             >
               <DownloadIcon className="size-3.5" />
