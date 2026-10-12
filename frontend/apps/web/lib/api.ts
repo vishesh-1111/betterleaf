@@ -15,10 +15,33 @@ function apiUrl(path: string): string {
   return `${API_BASE}/api/${path}`;
 }
 
+const UNSAFE_METHODS: Record<string, true> = {
+  POST: true,
+  PUT: true,
+  PATCH: true,
+  DELETE: true,
+};
+
+function getCsrfToken(): string | undefined {
+  const match = document.cookie
+    .split("; ")
+    .find((c) => c.startsWith("csrftoken="));
+  return match?.slice("csrftoken=".length);
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const method = init?.method?.toUpperCase();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...((init?.headers as Record<string, string>) ?? {}),
+  };
+  if (method && UNSAFE_METHODS[method]) {
+    const csrf = getCsrfToken();
+    if (csrf) headers["X-CSRFToken"] = csrf;
+  }
   const res = await fetch(apiUrl(path), {
     credentials: "include",
-    headers: { "Content-Type": "application/json", ...init?.headers },
+    headers,
     ...init,
   });
   if (!res.ok) {
@@ -94,11 +117,10 @@ export async function checkAuthentication(): Promise<boolean> {
   return data.authenticated === true;
 }
 
-/** Absolute URL that starts the Django Google OAuth flow and returns to the
- * current page with `?download=true` so the download can resume. */
+/** Absolute URL that starts the Django Google OAuth flow. The backend redirects
+ * back to the frontend origin with `?download=true` so the download resumes. */
 export function googleLoginUrl(): string {
-  const next = encodeURIComponent(`${window.location.origin}/?download=true`);
-  return `${API_BASE}/accounts/google/login/?next=${next}`;
+  return `${API_BASE}/accounts/google/login/`;
 }
 
 /** Map a Django resume into an editor file, assigning resumeId. */

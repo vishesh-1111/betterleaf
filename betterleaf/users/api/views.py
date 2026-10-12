@@ -1,3 +1,4 @@
+from django.middleware.csrf import get_token
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.decorators import api_view
@@ -35,6 +36,8 @@ def auth_status(request):
     """Report whether the current session (if any) is authenticated.
 
     Always returns 200; the frontend uses this to decide whether to proceed
-    with an authenticated action or kick off the Google OAuth flow.
+    with an authenticated action or kick off the Google OAuth flow. Also sets
+    the ``csrftoken`` cookie so the SPA can echo it back on unsafe methods.
     """
+    get_token(request)
     return Response({"authenticated": request.user.is_authenticated})

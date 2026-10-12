@@ -1,4 +1,5 @@
 from django.http import FileResponse
+from django.middleware.csrf import get_token
 from django.utils import timezone
 from rest_framework import status
 from rest_framework import viewsets
@@ -26,6 +27,9 @@ class WorkspaceView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
+        # Force a csrftoken cookie onto the response so the SPA can echo it
+        # back as X-CSRFToken on subsequent unsafe API calls.
+        get_token(request)
         workspace = get_workspace(request)
         created = workspace is None
         if workspace is None:

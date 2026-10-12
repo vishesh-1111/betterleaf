@@ -231,7 +231,9 @@ FIXTURE_DIRS = (str(APPS_DIR / "fixtures"),)
 # https://docs.djangoproject.com/en/dev/ref/settings/#session-cookie-httponly
 SESSION_COOKIE_HTTPONLY = True
 # https://docs.djangoproject.com/en/dev/ref/settings/#csrf-cookie-httponly
-CSRF_COOKIE_HTTPONLY = True
+# NOT httpOnly: the SPA must read `csrftoken` and echo it as X-CSRFToken on
+# unsafe (POST/PATCH/DELETE) cross-origin API calls.
+CSRF_COOKIE_HTTPONLY = False
 # https://docs.djangoproject.com/en/dev/ref/settings/#x-frame-options
 X_FRAME_OPTIONS = "DENY"
 
@@ -382,6 +384,14 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:3000",
 ]
 CORS_ALLOW_CREDENTIALS = True
+
+# The SPA POSTs cross-origin (frontend origin -> backend origin), so Django's
+# csrf middleware must trust the frontend's Origin header. SessionAuthentication
+# enforces CSRF on unsafe methods.
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
 
 # DeepSeek — chat endpoint for the AI assistant
 # ------------------------------------------------------------------------------
