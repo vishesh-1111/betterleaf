@@ -92,6 +92,7 @@ THIRD_PARTY_APPS = [
     "allauth.account",
     "allauth.mfa",
     "allauth.socialaccount",
+    "allauth.socialaccount.providers.google",
     "django_celery_beat",
     "rest_framework",
     "rest_framework.authtoken",
@@ -332,7 +333,7 @@ ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*", "password2*"]
 # https://docs.allauth.org/en/latest/account/configuration.html
 ACCOUNT_USER_MODEL_USERNAME_FIELD = None
 # https://docs.allauth.org/en/latest/account/configuration.html
-ACCOUNT_EMAIL_VERIFICATION = "mandatory"
+ACCOUNT_EMAIL_VERIFICATION = "optional"
 # https://docs.allauth.org/en/latest/account/configuration.html
 ACCOUNT_ADAPTER = "betterleaf.users.adapters.AccountAdapter"
 # https://docs.allauth.org/en/latest/account/forms.html
@@ -341,6 +342,26 @@ ACCOUNT_FORMS = {"signup": "betterleaf.users.forms.UserSignupForm"}
 SOCIALACCOUNT_ADAPTER = "betterleaf.users.adapters.SocialAccountAdapter"
 # https://docs.allauth.org/en/latest/socialaccount/configuration.html
 SOCIALACCOUNT_FORMS = {"signup": "betterleaf.users.forms.UserSocialSignupForm"}
+# https://docs.allauth.org/en/latest/socialaccount/configuration.html
+SOCIALACCOUNT_AUTO_SIGNUP = True
+# https://docs.allauth.org/en/latest/socialaccount/configuration.html
+SOCIALACCOUNT_LOGIN_ON_GET = True
+SOCIALACCOUNT_PROVIDERS = {
+    "google": {
+        "SCOPE": [
+            "email",
+            "profile",
+            "openid",
+        ],
+        "AUTH_PARAMS": {"access_type": "online"},
+    },
+}
+# https://docs.allauth.org/en/latest/socialaccount/configuration.html#-socialaccount-email-authentication
+SOCIALACCOUNT_EMAIL_AUTHENTICATION = True
+
+# Frontend origin — the Django backend redirects here after OAuth/login so the
+# SPA can resume a requested action (e.g. downloading a PDF).
+FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:3000")
 
 # django-rest-framework
 # -------------------------------------------------------------------------------

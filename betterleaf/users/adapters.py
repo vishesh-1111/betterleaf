@@ -7,6 +7,7 @@ from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
 from django.conf import settings
 
 if typing.TYPE_CHECKING:
+    from allauth.socialaccount.models import SocialAccount
     from allauth.socialaccount.models import SocialLogin
     from django.http import HttpRequest
 
@@ -46,3 +47,17 @@ class SocialAccountAdapter(DefaultSocialAccountAdapter):
                 if last_name := data.get("last_name"):
                     user.name += f" {last_name}"
         return user
+
+    def get_connect_redirect_url(
+        self,
+        request: HttpRequest,
+        socialaccount: SocialAccount,
+    ) -> str:
+        """Redirect back to the frontend after a social login completes.
+
+        The Google OAuth flow is only ever initiated by the frontend download
+        button, so we always return to the editor URL flagged with
+        ``?download=true`` so the SPA can resume the requested download.
+        """
+        frontend_url = settings.FRONTEND_URL.rstrip("/")
+        return f"{frontend_url}/?download=true"

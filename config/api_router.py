@@ -8,6 +8,7 @@ from betterleaf.resumes.views import CompilationViewSet
 from betterleaf.resumes.views import ResumeViewSet
 from betterleaf.resumes.views import TemplateListView
 from betterleaf.users.api.views import UserViewSet
+from betterleaf.users.api.views import auth_status
 
 router = DefaultRouter() if settings.DEBUG else SimpleRouter()
 
@@ -18,6 +19,7 @@ router.register("compilations", CompilationViewSet, basename="compilation")
 
 app_name = "api"
 urlpatterns = [
+    path("users/auth-status/", auth_status, name="auth-status"),
     *router.urls,
     path("templates/", TemplateListView.as_view(), name="template-list"),
     path("chat/", include("betterleaf.chat.urls")),
