@@ -1,0 +1,86 @@
+{
+  "name": "Vishesh Kumar Gautam",
+  "contact": {
+    "phone": "+91-9691168327",
+    "email": "visheshgautam.official@gmail.com",
+    "linkedin": null,
+    "github": "vishesh-1111",
+    "portfolio": "https://portfolio-vishesh-2004.vercel.app/"
+  },
+  "experience": [
+    {
+      "company": "Senda",
+      "duration": "Oct 2025 - Present",
+      "role": "AI Systems Engineer Intern",
+      "bullets": [
+        "Architected a Django-based distributed workflow platform using Celery, Redis, and LangGraph to orchestrate parallel data ingestion, analysis, and report generation pipelines, reducing portfolio report turnaround from 3–4 hours to under 60 seconds.",
+        "Designed a monthly Apache Iceberg partitioning strategy on AWS S3 for 20+ years of financial data, reducing partitions from 7,000+ daily to approximately 240 monthly (~97% reduction) while lowering metadata overhead and preserving month-range pruning.",
+        "Engineered a Kafka-based ETL pipeline ingesting large-scale financial datasets into MinIO object storage, processing data across 30+ topics and 1,000+ partitions to support downstream analytics and AI workloads."
+      ]
+    },
+    {
+      "company": "Attestr",
+      "duration": "Apr 2025 - Jul 2025",
+      "role": "ML Engineer Intern",
+      "bullets": [
+        "Developed and fine-tuned a DeePixBiS-based passive face liveness (anti-spoofing) model for KYC verification, trained on approximately 20K images, achieving 92% validation accuracy under data-constrained conditions, and deployed optimized ONNX Runtime inference endpoints on Hugging Face for real-time evaluation.",
+        "Built observability and performance monitoring dashboards with Prometheus and Grafana for an ONNX Runtime-based liveness detection service, analyzing inference latency across 1,000+ requests and validating p99 response times under 1 second."
+      ]
+    }
+  ],
+  "technical_skills": [
+    {
+      "key": "Languages",
+      "value": "C++, C, Python, TypeScript, JavaScript, SQL"
+    },
+    {
+      "key": "AI/ML",
+      "value": "Generative AI, Agentic AI, RAG, ONNX Runtime, Transformers, LangGraph, MCP, Computer Vision"
+    },
+    {
+      "key": "Systems & Tooling",
+      "value": "Linux, Windows, GCC, CMake, Git"
+    },
+    {
+      "key": "Backend & APIs",
+      "value": "Django, FastAPI, Node.js, Express.js, Celery, Redis"
+    },
+    {
+      "key": "Cloud, Infrastructure & Data",
+      "value": "AWS, Docker, Kafka, Apache Iceberg, MinIO, PostgreSQL, MongoDB, Git"
+    },
+    {
+      "key": "Observability",
+      "value": "Prometheus, Grafana, LangSmith, Langfuse"
+    }
+  ],
+  "education": [
+    {
+      "institution": "Dayananda Sagar College of Engineering",
+      "duration": "2022 - 2026",
+      "degree": "Bachelor of Engineering in Computer Science"
+    }
+  ],
+  "projects": [
+    {
+      "title": "Meruem – AI-Powered Data Analysis Platform",
+      "github": null,
+      "deployed": null,
+      "tech_stack": "Next.js, FastAPI, MongoDB",
+      "bullets": [
+        "Built an enterprise-grade data analysis automation platform that securely connects to private databases and delivers insights and visualizations without requiring manual SQL queries.",
+        "Implemented workspace collaboration with role-based access control, enabling teams to share analytical findings while preserving strict data confidentiality.",
+        "Impact: Reduced analysis turnaround time from hours to minutes."
+      ]
+    }
+  ],
+  "achievements": [
+    {
+      "title": "Competitive Programming - Codeforces",
+      "bullets": [
+        "Specialist (Max Rating: 1436) on Codeforces, solving algorithmic and data-structure problems primarily using C++.",
+        "Ranked Global 279 among 25,000+ participants in CodeChef Starters 119 (202"
+      ]
+    }
+  ]
+}
