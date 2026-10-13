@@ -6,7 +6,6 @@ import {
   useChatRuntime,
 } from "@assistant-ui/react-ai-sdk";
 import { ThemeProvider } from "next-themes";
-import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import type { ReactNode } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
@@ -14,7 +13,6 @@ import { useDocumentStore } from "@/stores/document-store";
 
 export function RootProvider({ children }: { children: ReactNode }) {
   const runtime = useChatRuntime({
-    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
     transport: new AssistantChatTransport({
       api: process.env.NEXT_PUBLIC_CHAT_API_URL ?? `${process.env.NEXT_PUBLIC_API_URL}/api/chat/`,
       credentials: "include",
@@ -31,9 +29,8 @@ export function RootProvider({ children }: { children: ReactNode }) {
           ...opts,
           body: {
             ...opts.body,
+            messages: opts.messages,
             resume_id: activeFile?.resumeId ?? undefined,
-            cursor: state.cursorPosition,
-            selection: state.selectionRange,
           },
         };
       },

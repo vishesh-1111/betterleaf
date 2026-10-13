@@ -85,6 +85,7 @@ export function PdfPreview() {
   const [scale, setScale] = useState<number>(1.0);
   const hasInitialCompile = useRef(false);
   const initialized = useDocumentStore((s) => s.initialized);
+  const compileRequestId = useDocumentStore((s) => s.compileRequestId);
 
   const handleTextClick = useCallback(
     (text: string) => {
@@ -144,6 +145,28 @@ export function PdfPreview() {
     setPdfData,
     setCompileError,
   ]);
+
+  // Recompile whenever an external actor (e.g. the AI assistant completing a
+  // turn) bumps the compile request counter.
+  useEffect(() => {
+    if (compileRequestId === 0) return;
+    const compile = async () => {
+      setIsCompiling(true);
+      try {
+        const currentFiles = useDocumentStore.getState().files;
+        const resources = gatherResources(currentFiles);
+        const data = await compileLatex(resources);
+        setPdfData(data);
+      } catch (error) {
+        setCompileError(
+          error instanceof Error ? error.message : "Compilation failed",
+        );
+      } finally {
+        setIsCompiling(false);
+      }
+    };
+    compile();
+  }, [compileRequestId, setIsCompiling, setPdfData, setCompileError]);
 
   const zoomIn = () => setScale((s) => Math.min(4, s + 0.1));
   const zoomOut = () => setScale((s) => Math.max(0.25, s - 0.1));

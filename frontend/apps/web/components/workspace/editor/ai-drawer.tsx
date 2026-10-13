@@ -70,8 +70,9 @@ export function AIDrawer() {
         }
       } else if (wasRunning) {
         wasRunning = false;
-        // A turn finished; Django executed any document tools, so re-read
-        // the active resume's main_tex to reflect server-side edits.
+        // A turn finished; Django may have updated the resume's main_tex with a
+        // freshly compiled document, so re-read it, then request a frontend
+        // recompile so the preview reflects the new content.
         void (async () => {
           const state = useDocumentStore.getState();
           const activeFile = state.files.find(
@@ -80,6 +81,7 @@ export function AIDrawer() {
           if (!activeFile?.resumeId) return;
           const resume = await getResume(activeFile.resumeId);
           state.updateFileContent(activeFile.id, resume.main_tex);
+          state.requestCompile();
         })();
       }
     });

@@ -1,4 +1,9 @@
 import json
+import re
+import shutil
+import subprocess
+import tempfile
+from pathlib import Path
 
 from django.conf import settings
 from django.http import StreamingHttpResponse
@@ -8,11 +13,57 @@ from rest_framework.views import APIView
 
 from betterleaf.chat import deepseek
 from betterleaf.chat.serializers import ChatRequestSerializer
-from betterleaf.chat.tools import TOOL_EXECUTORS
 from betterleaf.resumes.auth import get_workspace
+from betterleaf.resumes.catalog import TEMPLATE_CATALOG
 from betterleaf.resumes.models import Resume
 
-MAX_STEPS = 10
+TECTONIC_TIMEOUT = 30
+
+_FENCE_RE = re.compile(r"```(?:latex|tex)?\s*\n(.*?)```", re.DOTALL)
+
+
+def _extract_latex(text: str) -> str | None:
+    """Pull the full LaTeX document out of the assistant's fenced code block.
+
+    Falls back to the raw text when no fence is present (in case the model
+    returned a bare document without a code block).
+    """
+    match = _FENCE_RE.search(text)
+    if match:
+        return match.group(1).strip()
+    stripped = text.strip()
+    if stripped.startswith("\\") or "%" in stripped[:64]:
+        return stripped
+    return None
+
+
+def _compile(resume: Resume, latex: str) -> tuple[bool, str]:
+    """Synchronously compile ``latex`` with tectonic.
+
+    Returns ``(success, log)``. Mirrors ``resumes.tasks.compile_resume`` but runs
+    inline so the chat view can decide whether to persist the new source.
+    """
+    template = TEMPLATE_CATALOG[resume.template]
+    tmpdir = Path(tempfile.mkdtemp(prefix="betterleaf-chat-compile-"))
+    try:
+        (tmpdir / "main.tex").write_text(latex)
+        if template.cls_path is not None:
+            shutil.copy(template.cls_path, tmpdir / "resume.cls")
+        proc = subprocess.run(  # noqa: S603 — pinned trusted binary, no shell
+            ["tectonic", "--outdir", str(tmpdir), "main.tex"],  # noqa: S607
+            cwd=tmpdir,
+            capture_output=True,
+            text=True,
+            timeout=TECTONIC_TIMEOUT,
+            check=False,
+        )
+        log = (proc.stdout or "") + (proc.stderr or "")
+        pdf_path = tmpdir / "main.pdf"
+        return (proc.returncode == 0 and pdf_path.exists()), log
+    except subprocess.TimeoutExpired:
+        return False, f"Compilation timed out after {TECTONIC_TIMEOUT}s."
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
 
 
 def _build_system_prompt(system: str, resume: Resume | None) -> str:
@@ -64,92 +115,63 @@ class ChatStreamView(APIView):
 
         system = data.get("system") or ""
         messages = data.get("messages") or []
-        tools = data.get("tools") or {}
-        cursor = data.get("cursor")
-        selection = data.get("selection")
 
-        generator = self._run(request, messages, system, tools, resume, cursor, selection)
+        generator = self._run(messages, system, resume)
         response = StreamingHttpResponse(generator, content_type="text/event-stream")
         response["X-Vercel-AI-UI-Message-Stream"] = "v1"
         response["Cache-Control"] = "no-cache"
         response["Connection"] = "keep-alive"
         return response
 
-    async def _run(self, request, messages, system, tools, resume, cursor, selection):
+    async def _run(self, messages, system, resume):
         openai_messages = _to_ui_messages(messages, system, resume)
-        steps = 0
 
-        while True:
-            meta = None
-            async for chunk in deepseek.stream_chat(
-                openai_messages,
-                tools,
-                settings.DEEPSEEK_API_URL,
-                settings.DEEPSEEK_MODEL,
-                settings.DEEPSEEK_API_KEY,
-            ):
-                if "tool_calls" in chunk:
-                    meta = chunk
-                    continue
-                yield self._sse(chunk)
+        meta = None
+        async for chunk in deepseek.stream_chat(
+            openai_messages,
+            settings.DEEPSEEK_API_URL,
+            settings.DEEPSEEK_MODEL,
+            settings.DEEPSEEK_API_KEY,
+        ):
+            if "full_text" in chunk:
+                meta = chunk
+                continue
+            yield self._sse(chunk)
 
-            if meta is None:
-                yield self._sse({"type": "finish", "finishReason": "stop"})
-                return
+        if meta is None:
+            yield self._sse({"type": "finish", "finishReason": "stop"})
+            return
 
-            finish_reason = meta.get("finish_reason")
-            tool_calls = meta.get("tool_calls") or []
+        if meta.get("finish_reason") == "error":
+            yield self._sse({"type": "error", "errorText": meta.get("error", "DeepSeek error")})
+            return
 
-            if finish_reason == "error":
-                yield self._sse({"type": "error", "errorText": meta.get("error", "DeepSeek error")})
-                return
+        latex = _extract_latex(meta.get("full_text") or "")
+        if latex is None:
+            yield self._sse({"type": "error", "errorText": "No LaTeX document found in the response."})
+            return
 
-            if not tool_calls or steps >= MAX_STEPS:
-                yield self._sse({"type": "finish", "finishReason": "stop"})
-                return
+        success, log = await self._compile_async(resume, latex)
+        if success:
+            resume.main_tex = latex
+            resume.save(update_fields=["main_tex", "updated_at"])
+        else:
+            yield self._sse(
+                {
+                    "type": "error",
+                    "errorText": f"Compilation failed:\n{log[-2000:]}",
+                },
+            )
+            return
 
-            # Build the assistant message with tool_calls, then execute each tool.
-            assistant_message = {
-                "role": "assistant",
-                "content": "",
-                "tool_calls": [
-                    {
-                        "id": tc["id"],
-                        "type": "function",
-                        "function": {"name": tc["name"], "arguments": json.dumps(tc["input"])},
-                    }
-                    for tc in tool_calls
-                ],
-            }
-            openai_messages.append(assistant_message)
-
-            for tc in tool_calls:
-                name = tc["name"]
-                executor = TOOL_EXECUTORS.get(name)
-                if executor is None:
-                    result = {"success": False, "error": f"Unknown tool: {name}"}
-                else:
-                    try:
-                        result = self._execute(name, resume, tc["input"], cursor, selection)
-                    except Exception as exc:  # noqa: BLE001
-                        result = {"success": False, "error": str(exc)}
-                openai_messages.append(
-                    {
-                        "role": "tool",
-                        "tool_call_id": tc["id"],
-                        "content": json.dumps(result),
-                    },
-                )
-
-            steps += 1
+        yield self._sse({"type": "finish", "finishReason": "stop"})
 
     @staticmethod
-    def _execute(name, resume, args, cursor, selection):
-        if name == "insert_latex":
-            return TOOL_EXECUTORS["insert_latex"](resume, args, cursor)
-        if name == "replace_selection":
-            return TOOL_EXECUTORS["replace_selection"](resume, args, cursor, selection)
-        return TOOL_EXECUTORS[name](resume, args)
+    async def _compile_async(resume, latex):
+        import asyncio
+
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, _compile, resume, latex)
 
     @staticmethod
     def _sse(chunk: dict) -> str:

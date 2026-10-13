@@ -23,6 +23,7 @@ interface DocumentState {
   isCompiling: boolean;
   isSaving: boolean;
   initialized: boolean;
+  compileRequestId: number;
 
   setActiveFile: (id: string) => void;
   addFile: (file: Omit<ProjectFile, "id">) => string;
@@ -45,6 +46,7 @@ interface DocumentState {
 
   setFileName: (name: string) => void;
   setContent: (content: string) => void;
+  requestCompile: () => void;
 }
 
 function generateId(): string {
@@ -95,6 +97,7 @@ export const useDocumentStore = create<DocumentState>()((set, get) => ({
   isCompiling: false,
   isSaving: false,
   initialized: false,
+  compileRequestId: 0,
 
   setActiveFile: (id) =>
     set({ activeFileId: id, cursorPosition: 0, selectionRange: null }),
@@ -212,6 +215,9 @@ export const useDocumentStore = create<DocumentState>()((set, get) => ({
   },
 
   setInitialized: () => set({ initialized: true }),
+
+  requestCompile: () =>
+    set((state) => ({ compileRequestId: state.compileRequestId + 1 })),
 
   setFileName: (name) => {
     const state = get();

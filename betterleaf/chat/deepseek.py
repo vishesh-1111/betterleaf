@@ -1,11 +1,13 @@
 """DeepSeek streaming client and message conversion.
 
 The frontend sends AI SDK "model messages" (``content`` is an array of parts
-like ``{"type": "text", "text": ...}``, ``{"type": "tool-call", ...}``,
-``{"type": "tool-result", ...}``). DeepSeek expects the OpenAI chat format, so
-we convert before POSTing. The response is streamed as SSE lines and translated
-into the ``x-vercel-ai-ui-message-stream`` chunk vocabulary the browser's
-``uiMessageChunkSchema`` validates.
+like ``{"type": "text", "text": ...}``). DeepSeek expects the OpenAI chat
+format, so we convert before POSTing. The response is streamed as SSE lines and
+translated into the ``x-vercel-ai-ui-message-stream`` chunk vocabulary the
+browser's ``uiMessageChunkSchema`` validates.
+
+The assistant has no tools: it returns the full updated LaTeX document in a
+fenced code block, and the view extracts and compiles that output.
 """
 
 import json
@@ -13,31 +15,18 @@ import uuid
 
 import httpx
 
-from betterleaf.chat.tools import TOOL_SCHEMAS
+SYSTEM_PROMPT = """You are a LaTeX document assistant. You help users write and edit their entire LaTeX document.
 
-SYSTEM_PROMPT = """You are a helpful LaTeX assistant. You help users write and edit LaTeX documents.
+You are given the user's current document in the context. When the user asks you to write, edit, add, or change content in their document, you MUST respond with the COMPLETE, updated LaTeX document — never a fragment or a patch.
 
-When providing LaTeX code:
-- Use proper LaTeX syntax
-- Explain what each part does
-- Suggest best practices
-- Use code blocks with ```latex for LaTeX code
+Rules:
+- Return the full LaTeX source wrapped in a single fenced code block: ```latex ... ```
+- Do not add prose before or after the code block unless the user explicitly asks for an explanation.
+- The code block must contain the entire document, compiling as-is with a standard LaTeX class.
+- Preserve and incorporate all existing content that the user did not ask to change.
+- Do not invent or hallucinate content the user never provided or requested.
 
-You have access to the user's current document which is provided in the context.
-
-When the user asks you to help with their document:
-- Reference specific parts of their document
-- Suggest improvements and fixes
-- Provide complete code snippets they can use
-
-You have tools available to directly modify the document:
-- Use insert_latex to insert code at the user's cursor position
-- Use replace_selection to replace selected text (only when user has selected text)
-- Use find_and_replace to find and replace specific text in the document
-
-When the user asks you to add, insert, or write LaTeX code to their document, use the insert_latex tool.
-When the user asks you to replace or modify selected text, use the replace_selection tool.
-When the user asks you to change, modify, or replace specific text in the document, use the find_and_replace tool.
+You have NO tools. Your only way to change the document is to output the full updated LaTeX in the code block.
 
 Common tasks you help with:
 - Writing mathematical equations
@@ -65,61 +54,21 @@ def _convert_message(message: dict) -> dict | None:
     role = message.get("role")
     content = message.get("content")
 
-    if role == "system":
+    if role in ("system", "user"):
         if isinstance(content, str):
-            return {"role": "system", "content": content}
-        return {"role": "system", "content": _text_to_string(content)}
-
-    if role == "user":
-        if isinstance(content, str):
-            return {"role": "user", "content": content}
-        return {"role": "user", "content": _text_to_string(content)}
+            return {"role": role, "content": content}
+        return {"role": role, "content": _text_to_string(content)}
 
     if role == "assistant":
-        text_parts = []
-        tool_calls = []
         if isinstance(content, str):
-            text_parts.append(content)
+            text = content
         else:
-            for part in content or []:
-                ptype = part.get("type")
-                if ptype == "text":
-                    text_parts.append(part.get("text", ""))
-                elif ptype == "tool-call":
-                    tool_calls.append(
-                        {
-                            "id": part.get("toolCallId"),
-                            "type": "function",
-                            "function": {
-                                "name": part.get("toolName"),
-                                "arguments": json.dumps(part.get("input") or {}),
-                            },
-                        },
-                    )
-        result = {"role": "assistant", "content": "".join(text_parts)}
-        if tool_calls:
-            result["tool_calls"] = tool_calls
-        return result
-
-    if role == "tool":
-        # A role:"tool" message carries tool-result parts keyed by toolCallId.
-        results = []
-        if isinstance(content, dict):
-            content = [content]
-        for part in content or []:
-            ptype = part.get("type")
-            if ptype in ("tool-result", "tool-error"):
-                output = part.get("output", part.get("error"))
-                results.append(
-                    {
-                        "role": "tool",
-                        "tool_call_id": part.get("toolCallId"),
-                        "content": (
-                            output if isinstance(output, str) else json.dumps(output)
-                        ),
-                    },
-                )
-        return results  # list of tool messages
+            text = "".join(
+                part.get("text", "")
+                for part in content or []
+                if isinstance(part, dict) and part.get("type") == "text"
+            )
+        return {"role": "assistant", "content": text}
 
     return None
 
@@ -133,9 +82,7 @@ def convert_messages_to_openai(messages: list[dict], system: str) -> list[dict]:
         item = _convert_message(message)
         if item is None:
             continue
-        if isinstance(item, list):
-            converted.extend(item)
-        elif item.get("role") == "system" and item.get("content", "").strip():
+        if item.get("role") == "system" and item.get("content", "").strip():
             converted.append(item)
         elif item.get("role") != "system":
             converted.append(item)
@@ -147,26 +94,25 @@ def convert_messages_to_openai(messages: list[dict], system: str) -> list[dict]:
 
 async def stream_chat(
     messages: list[dict],
-    tools: dict,
     api_url: str,
     model: str,
     api_key: str,
 ):
     """Stream DeepSeek's OpenAI-compatible response.
 
-    Yields UI-message-stream chunks (``start``/``text-*``/``tool-input-*``)
-    followed by a final metadata dict as the last item:
-    ``{"tool_calls": [...], "finish_reason": "..."}``. The view uses that final
-    dict to decide tool execution and whether to loop. ``finish`` is emitted by
-    the caller, not here.
+    Yields UI-message-stream text chunks (``start``/``text-*``). The final item
+    is a metadata dict ``{"finish_reason": "...", "full_text": "..."}`` carrying
+    the complete concatenated assistant text, which the caller uses to extract
+    the LaTeX document. ``finish`` is emitted by the caller, not here.
     """
     request_body: dict = {
         "model": model,
         "messages": messages,
         "stream": True,
+        # Force thinking mode off regardless of model default.
+        # "reasoning_effort": "none",
+        # "thinking": {"type": "disabled"},
     }
-    if tools:
-        request_body["tools"] = TOOL_SCHEMAS
 
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -177,11 +123,8 @@ async def stream_chat(
     text_id = str(uuid.uuid4())
     started = False
     text_started = False
-    text_ended = False
     finish_reason = None
-
-    # Buffered tool-call state (indexed like OpenAI stream fragments).
-    tool_calls: dict[int, dict] = {}
+    full_text: list[str] = []
 
     async with httpx.AsyncClient(timeout=httpx.Timeout(300.0, read=300.0)) as client:
         try:
@@ -191,9 +134,9 @@ async def stream_chat(
                 if response.status_code != 200:
                     body = (await response.aread()).decode("utf-8", "replace")
                     yield {
-                        "tool_calls": [],
                         "finish_reason": "error",
                         "error": f"DeepSeek error {response.status_code}: {body[:500]}",
+                        "full_text": "",
                     }
                     return
 
@@ -218,6 +161,7 @@ async def stream_chat(
 
                     content = delta.get("content")
                     if content:
+                        full_text.append(content)
                         if not started:
                             started = True
                             yield {"type": "start", "messageId": message_id}
@@ -225,72 +169,15 @@ async def stream_chat(
                             text_started = True
                             yield {"type": "text-start", "id": text_id}
                         yield {"type": "text-delta", "id": text_id, "delta": content}
-
-                    for tc in delta.get("tool_calls") or []:
-                        index = tc.get("index", 0)
-                        entry = tool_calls.setdefault(
-                            index,
-                            {
-                                "id": tc.get("id"),
-                                "name": "",
-                                "arguments": "",
-                                "started": False,
-                            },
-                        )
-                        if tc.get("id"):
-                            entry["id"] = tc["id"]
-                        fn = tc.get("function") or {}
-                        if fn.get("name"):
-                            entry["name"] = fn["name"]
-                        if fn.get("arguments"):
-                            if not entry["started"]:
-                                entry["started"] = True
-                                yield {
-                                    "type": "tool-input-start",
-                                    "toolCallId": entry["id"],
-                                    "toolName": entry["name"],
-                                }
-                            entry["arguments"] += fn["arguments"]
-                            yield {
-                                "type": "tool-input-delta",
-                                "toolCallId": entry["id"],
-                                "inputTextDelta": fn["arguments"],
-                            }
         except httpx.HTTPError as exc:
-            yield {"tool_calls": [], "finish_reason": "error", "error": str(exc)}
+            yield {
+                "finish_reason": "error",
+                "error": str(exc),
+                "full_text": "".join(full_text),
+            }
             return
 
-    # Close text first, then finalize any tool inputs, then hand control back.
-    if text_started and not text_ended:
+    if text_started:
         yield {"type": "text-end", "id": text_id}
 
-    completed = []
-    for idx in sorted(tool_calls):
-        entry = tool_calls[idx]
-        try:
-            input_args = (
-                json.loads(entry["arguments"]) if entry["arguments"].strip() else {}
-            )
-        except json.JSONDecodeError:
-            input_args = {}
-        if not entry["started"]:
-            yield {
-                "type": "tool-input-start",
-                "toolCallId": entry["id"],
-                "toolName": entry["name"],
-            }
-        yield {
-            "type": "tool-input-available",
-            "toolCallId": entry["id"],
-            "toolName": entry["name"],
-            "input": input_args,
-        }
-        completed.append(
-            {
-                "id": entry["id"],
-                "name": entry["name"],
-                "input": input_args,
-            },
-        )
-
-    yield {"tool_calls": completed, "finish_reason": finish_reason or "stop"}
+    yield {"finish_reason": finish_reason or "stop", "full_text": "".join(full_text)}
