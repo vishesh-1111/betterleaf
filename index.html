@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Betterleaf – The AI resume editor for engineers</title>
-<meta name="description" content="Betterleaf turns vague resume bullets into scope, method and measured results. Built for software engineers. It asks for your numbers and never invents them.">
+<title>Betterleaf – A LaTeX resume workspace with AI that knows LaTeX</title>
+<meta name="description" content="Stop copy-pasting between ChatGPT and Overleaf. Upload your resume, edit by hand or with AI, preview live and download a clean one-page PDF. Free to start.">
 <meta name="theme-color" content="#10281F">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2310281F'/%3E%3Cpath d='M8 24c0-9 5-15 16-16 0 11-6 16-16 16z' fill='%232E7D5B'/%3E%3Cpath d='M8 24L19 13' stroke='%23F2C14E' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2310281F'/%3E%3Cpath d='M14 28V12' stroke='%23F2F4F0' stroke-width='3.6' stroke-linecap='round' fill='none'/%3E%3Cpath d='M14 13C13.5 6 18 2.5 25.5 2.7 25.7 9.5 21 14 14 13Z' fill='%232E7D5B'/%3E%3Cpath d='M14 19.5C16 17 19.5 16.6 23 17.4 22.2 20.4 18.5 21.6 14 19.5Z' fill='%232E7D5B'/%3E%3Cpath d='M14 19.5C12 17 8.5 16.6 5 17.4 5.8 20.4 9.5 21.6 14 19.5Z' fill='%232E7D5B'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -16,124 +16,119 @@
   --leaf:#2E7D5B;        /* secondary */
   --chalk:#F2F4F0;       /* page */
   --paper:#FFFFFF;
-  --sun:#F2C14E;         /* highlight, used only for edits */
+  --sun:#F2C14E;         /* highlight: only for what the AI changed */
   --muted:#4E6158;
   --line:#D3DAD2;
   --display:"Bricolage Grotesque","Helvetica Neue",Arial,sans-serif;
   --body:"Instrument Sans","Helvetica Neue",Arial,sans-serif;
+  --code:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+  --tex:"Latin Modern Roman","CMU Serif",Georgia,"Times New Roman",serif;
   --wrap:1180px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
 body{background:var(--chalk);color:var(--spruce);font-family:var(--body);font-size:17px;line-height:1.6;-webkit-font-smoothing:antialiased}
-img,svg{display:block;max-width:100%}
+svg{display:block;max-width:100%}
 a{color:inherit}
 :focus-visible{outline:3px solid var(--leaf);outline-offset:3px;border-radius:4px}
 .wrap{max-width:var(--wrap);margin:0 auto;padding:0 28px}
 h1,h2,h3{font-family:var(--display);line-height:1.04;letter-spacing:-.025em;font-weight:800}
-h1{font-size:clamp(2.7rem,6vw,4.9rem)}
+h1{font-size:clamp(2.6rem,5.6vw,4.6rem)}
 h2{font-size:clamp(2rem,4vw,3.1rem)}
 h3{font-size:1.3rem;letter-spacing:-.015em;line-height:1.2;font-weight:700}
 p{max-width:62ch}
 
-/* buttons */
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font:600 1rem/1 var(--body);padding:16px 24px;border-radius:999px;border:2px solid var(--spruce);background:var(--spruce);color:var(--chalk);text-decoration:none;cursor:pointer;transition:background .15s,color .15s,border-color .15s}
+.btn{display:inline-flex;align-items:center;justify-content:center;font:600 1rem/1 var(--body);padding:17px 28px;border-radius:999px;border:2px solid var(--spruce);background:var(--spruce);color:var(--chalk);text-decoration:none;cursor:pointer;transition:background .15s,color .15s,border-color .15s}
 .btn:hover{background:var(--leaf);border-color:var(--leaf)}
+.btn.sm{padding:11px 18px;font-size:.93rem}
 .btn.ghost{background:transparent;color:var(--spruce)}
 .btn.ghost:hover{background:var(--spruce);color:var(--chalk);border-color:var(--spruce)}
-.btn.sm{padding:11px 18px;font-size:.93rem}
 
 /* nav */
 header.top{position:sticky;top:0;z-index:20;background:rgba(242,244,240,.9);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
 .nav{display:flex;align-items:center;justify-content:space-between;height:68px}
-.logo{display:flex;align-items:center;gap:10px;font:800 1.35rem/1 var(--display);letter-spacing:-.03em;text-decoration:none}
+.logo{display:inline-flex;align-items:baseline;font:800 1.7rem/1 var(--display);letter-spacing:-.035em;text-decoration:none}
+.wm{display:inline-block;white-space:nowrap}
+.f-leaf{display:inline-block;height:1.1em;width:auto;margin-left:.03em;vertical-align:-.115em;color:var(--spruce);overflow:visible}
 .nav ul{display:flex;gap:30px;list-style:none;font-size:.97rem;font-weight:500}
 .nav ul a{text-decoration:none;color:var(--muted)}
 .nav ul a:hover{color:var(--spruce)}
 
 /* hero */
-.hero{padding:72px 0 96px}
-.hero-grid{display:grid;grid-template-columns:1fr 1.02fr;gap:64px;align-items:center}
-.hero h1{margin-bottom:26px}
-.hero .lede{font-size:1.22rem;color:var(--muted);margin-bottom:34px;line-height:1.55}
-.cta-row{display:flex;gap:14px;flex-wrap:wrap}
-.hero small{display:block;margin-top:20px;color:var(--muted);font-size:.93rem}
+.hero{padding:68px 0 96px}
+.hero-top{display:grid;grid-template-columns:1.35fr 1fr;gap:56px;align-items:end}
+.hero p.lede{font-size:1.2rem;color:var(--muted);line-height:1.55;margin-bottom:28px}
+.hero small{display:block;margin-top:16px;color:var(--muted);font-size:.93rem}
+.who-for{margin-top:22px;font-size:.95rem;color:var(--muted)}
 
-/* demo */
-.demo{background:var(--paper);border:1.5px solid var(--spruce);border-radius:18px;box-shadow:10px 10px 0 var(--spruce);overflow:hidden}
-.demo-bar{display:flex;justify-content:space-between;align-items:center;padding:13px 20px;border-bottom:1.5px solid var(--spruce);font-size:.9rem;font-weight:600;background:var(--chalk)}
-.demo-bar span:last-child{color:var(--muted);font-weight:500}
-.tabs{display:flex;gap:6px;padding:16px 20px 0;flex-wrap:wrap}
-.tab{font:500 .92rem/1 var(--body);padding:9px 14px;border-radius:999px;border:1.5px solid var(--line);background:transparent;color:var(--muted);cursor:pointer}
-.tab:hover{border-color:var(--spruce);color:var(--spruce)}
-.tab[aria-selected="true"]{background:var(--spruce);border-color:var(--spruce);color:var(--chalk)}
-.demo-body{padding:22px 24px 8px}
-.exp-head{display:flex;justify-content:space-between;font-size:.9rem;color:var(--muted);margin-bottom:12px}
-.exp-head b{color:var(--spruce);font-weight:600}
-.bullet{display:flex;gap:12px;min-height:128px;font-size:1.08rem;line-height:1.55;transition:opacity .22s}
-.bullet::before{content:"";flex:0 0 7px;height:7px;border-radius:50%;background:var(--spruce);margin-top:.7em}
-.bullet.swap{opacity:0}
-.bullet mark{background:var(--sun);color:var(--spruce);padding:1px 4px;border-radius:4px}
-.bullet .old{color:#5b6a62}
-.signals{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:6px 24px 6px}
-.sig{border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;transition:background .3s,border-color .3s,color .3s;color:var(--muted)}
-.sig b{display:block;font-size:.95rem;font-weight:600}
-.sig span{font-size:.8rem;line-height:1.3;display:block}
-.sig.on{background:var(--spruce);border-color:var(--spruce);color:var(--chalk)}
-.sig.on span{color:#B9CFC3}
-.ask{margin:14px 24px 0;padding:12px 14px;border-radius:12px;background:var(--chalk);font-size:.93rem;color:var(--muted);display:flex;gap:10px;align-items:flex-start;min-height:62px}
-.ask svg{flex:0 0 18px;margin-top:3px}
-.ask b{color:var(--spruce);font-weight:600}
-.demo-foot{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:18px 24px 22px}
-.demo-foot .btn{padding:13px 20px;font-size:.95rem}
-.demo-foot p{font-size:.82rem;color:var(--muted);line-height:1.35;max-width:24ch;text-align:right}
+/* studio mockup */
+.studio{margin-top:60px;border:1.5px solid var(--spruce);border-radius:18px;box-shadow:10px 10px 0 var(--spruce);background:var(--paper);overflow:hidden;animation:settle .7s cubic-bezier(.2,.7,.2,1) .15s both}
+.s-bar{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 18px;border-bottom:1.5px solid var(--spruce);background:var(--chalk);font-size:.9rem}
+.s-tab{font-weight:600}
+.s-right{display:flex;align-items:center;gap:10px}
+.pill{font-weight:600;font-size:.85rem;padding:6px 12px;border-radius:999px;background:var(--sun);color:var(--spruce);transition:background .3s,color .3s}
+.pill.ok{background:var(--leaf);color:#fff}
+.fake-btn{font-size:.85rem;font-weight:500;padding:6px 12px;border-radius:999px;border:1.5px solid var(--line);color:var(--muted)}
+.s-body{display:grid;grid-template-columns:1.12fr .88fr}
+.left{border-right:1.5px solid var(--spruce);display:flex;flex-direction:column;min-width:0}
+.code{background:var(--spruce);color:#D9E6DE;font:.8rem/1.65 var(--code);padding:18px 0;flex:1;min-height:340px;overflow:hidden}
+.ln{display:flex;gap:14px;padding:0 18px 0 0;border-left:3px solid transparent;transition:background .3s}
+.ln .no{flex:0 0 38px;text-align:right;color:#5E8573;user-select:none}
+.ln .tx{white-space:pre-wrap;overflow-wrap:anywhere;padding-left:2.2ch;text-indent:-2.2ch}
+.ln.chg{background:rgba(242,193,78,.16);border-left-color:var(--sun)}
+.cmd{color:#7FD1A6}.br{color:#7FA896}
+.ai{background:#16362B;color:#D9E6DE;padding:14px 18px;display:flex;gap:14px;align-items:center;justify-content:space-between;border-top:1px solid #2B4F40}
+.ai p{font-size:.92rem;line-height:1.4;max-width:none}
+.ai b{color:#fff;font-weight:600}
+.ai .btn{padding:11px 18px;font-size:.9rem;background:var(--sun);border-color:var(--sun);color:var(--spruce);flex:0 0 auto}
+.ai .btn:hover{background:#fff;border-color:#fff}
+.right{background:var(--chalk);padding:26px 24px;display:flex;justify-content:center;align-items:flex-start;min-width:0}
+.paper{background:#fff;border:1px solid var(--line);box-shadow:0 1px 0 var(--line);padding:26px 28px 24px;width:100%;max-width:430px;font:.8rem/1.4 var(--tex);color:#161616}
+.paper .nm{text-align:center;font-size:1.55rem;line-height:1.1;font-variant:small-caps;letter-spacing:.02em}
+.paper .ct{text-align:center;font-size:.72rem;margin:4px 0 12px}
+.paper h4{font:inherit;font-variant:small-caps;font-size:.92rem;border-bottom:1px solid #161616;margin:10px 0 5px;letter-spacing:.03em}
+.paper .rw{display:flex;justify-content:space-between}
+.paper .rw b{font-weight:700}
+.paper ul{margin:3px 0 0 1.1em}
+.paper li{margin-bottom:2px}
+.paper .p2{transition:opacity .3s}
+.paper.spill .p2{opacity:.5}
+.pb{display:none;margin:12px -28px 4px;border-top:1.5px dashed var(--leaf);position:relative;height:0}
+.paper.spill .pb{display:block}
+.pb span{position:absolute;right:28px;top:-11px;background:var(--sun);color:var(--spruce);font:600 .68rem/1 var(--body);padding:4px 8px;border-radius:999px}
+.hl{background:rgba(242,193,78,.55);transition:background .6s}
 
 /* sections */
 section{padding:104px 0}
-.split{display:grid;grid-template-columns:.8fr 1.2fr;gap:72px;align-items:start}
-.split > .head{position:sticky;top:110px}
-.split h2{margin-bottom:18px}
-.split .head p{color:var(--muted)}
-.rows{border-top:1.5px solid var(--spruce)}
-.row{display:grid;grid-template-columns:1fr 1.3fr;gap:32px;padding:30px 0;border-bottom:1px solid var(--line)}
-.row p{color:var(--muted)}
+.dark{background:var(--spruce);color:var(--chalk)}
+.dark h2{max-width:17ch;margin-bottom:56px}
+.pairs{border-top:1px solid #35574A}
+.pair{display:grid;grid-template-columns:1fr 1.15fr;gap:40px;padding:34px 0;border-bottom:1px solid #35574A}
+.pair .was{color:#9DB9AB}
+.pair small,.pair .tag{display:block;font-size:.88rem;font-weight:500;margin-bottom:8px;color:#7FA896}
+.pair .now h3{font-size:1.65rem;letter-spacing:-.02em;color:#fff}
+.pair .now p{margin-top:10px;color:#B9CFC3}
 
-/* honesty band */
-.band{background:var(--spruce);color:var(--chalk)}
-.band .grid{display:grid;grid-template-columns:1.05fr .95fr;gap:72px;align-items:center}
-.band h2{margin-bottom:22px}
-.band p{color:#B9CFC3;font-size:1.1rem}
-.chat{background:#16362B;border-radius:18px;padding:26px;display:flex;flex-direction:column;gap:14px}
-.msg{max-width:88%;padding:13px 17px;border-radius:16px;font-size:.98rem;line-height:1.5}
-.msg.bl{background:var(--leaf);color:#fff;border-bottom-left-radius:4px}
-.msg.me{background:var(--chalk);color:var(--spruce);align-self:flex-end;border-bottom-right-radius:4px}
-.msg.out{background:transparent;border:1.5px dashed #4C7A66;color:var(--chalk);max-width:100%;border-radius:12px}
-.msg.out mark{background:var(--sun);color:var(--spruce);padding:1px 4px;border-radius:4px}
-.who{font-size:.78rem;color:#8FB3A2;margin:0 4px -8px}
-.who.r{align-self:flex-end}
-
-/* steps */
-.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:0;margin-top:56px;border-top:1.5px solid var(--spruce)}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);margin-top:52px;border-top:1.5px solid var(--spruce)}
 .step{padding:30px 32px 0 0}
 .step + .step{padding-left:32px;border-left:1px solid var(--line)}
 .step .n{font:800 3.4rem/1 var(--display);color:var(--leaf);letter-spacing:-.04em;margin-bottom:18px}
 .step p{color:var(--muted);margin-top:10px}
 
-/* pricing */
 .plans{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:52px;max-width:880px}
-.plan{border:1.5px solid var(--spruce);border-radius:18px;padding:34px;background:var(--paper)}
-.plan.pro{background:var(--spruce);color:var(--chalk)}
+.plan{border:1.5px solid var(--spruce);border-radius:18px;padding:34px;background:var(--paper);display:flex;flex-direction:column}
+.plan.soon{background:transparent;border-style:dashed;border-color:#8FA398}
 .plan .price{font:800 3rem/1 var(--display);letter-spacing:-.04em;margin:14px 0 4px}
-.plan .price small{font:500 1rem var(--body);letter-spacing:0;opacity:.7}
-.plan ul{list-style:none;margin:24px 0 30px;display:grid;gap:12px}
+.plan .price.tba{font-size:1.9rem;color:var(--muted);letter-spacing:-.02em;padding-top:.5rem}
+.plan .sub{font-size:.95rem;color:var(--muted)}
+.plan ul{list-style:none;margin:24px 0 30px;display:grid;gap:12px;flex:1}
 .plan li{display:flex;gap:10px;font-size:.98rem}
 .plan li svg{flex:0 0 18px;margin-top:4px}
 .plan .btn{width:100%}
-.plan.pro .btn{background:var(--sun);border-color:var(--sun);color:var(--spruce)}
-.plan.pro .btn:hover{background:var(--chalk);border-color:var(--chalk)}
-.plan .sub{font-size:.95rem;opacity:.75}
+.plan.soon li{color:var(--muted)}
 
-/* faq */
+.split{display:grid;grid-template-columns:.8fr 1.2fr;gap:72px;align-items:start}
+.split > .head{position:sticky;top:110px}
 .faq{border-top:1.5px solid var(--spruce)}
 details{border-bottom:1px solid var(--line);padding:22px 0}
 summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;gap:20px;font:700 1.15rem/1.3 var(--display);letter-spacing:-.01em}
@@ -142,20 +137,12 @@ summary::after{content:"+";font:500 1.6rem/1 var(--body);color:var(--leaf);trans
 details[open] summary::after{transform:rotate(45deg)}
 details p{margin-top:12px;color:var(--muted)}
 
-/* final cta */
 .final{padding:0 0 104px}
-.final-box{background:var(--leaf);color:#fff;border-radius:26px;padding:72px 56px;display:grid;grid-template-columns:1.1fr .9fr;gap:48px;align-items:center}
-.final h2{color:#fff}
-.final p{color:#E3F1E9;margin-top:16px}
-form.wl{display:flex;flex-direction:column;gap:12px}
-form.wl label{font-weight:600;font-size:.95rem}
-.field{display:flex;gap:10px;flex-wrap:wrap}
-.field input{flex:1 1 220px;padding:16px 20px;border-radius:999px;border:2px solid transparent;font:500 1rem var(--body);color:var(--spruce);background:#fff}
-.field input:focus-visible{outline:3px solid var(--sun);outline-offset:2px}
-.field .btn{background:var(--spruce);border-color:var(--spruce);color:#fff}
-.field .btn:hover{background:#fff;color:var(--spruce);border-color:#fff}
-.fine{font-size:.88rem;color:#E3F1E9}
-#wl-msg{font-weight:600;min-height:1.4em}
+.final-box{background:var(--leaf);color:#fff;border-radius:26px;padding:76px 56px;display:flex;justify-content:space-between;align-items:center;gap:40px;flex-wrap:wrap}
+.final h2{max-width:15ch}
+.final p{color:#E3F1E9;margin-top:14px}
+.final .btn{background:var(--spruce);border-color:var(--spruce);color:#fff}
+.final .btn:hover{background:#fff;color:var(--spruce);border-color:#fff}
 
 footer{border-top:1px solid var(--line);padding:36px 0 48px;font-size:.93rem;color:var(--muted)}
 footer .wrap{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
@@ -163,14 +150,17 @@ footer nav{display:flex;gap:24px}
 footer a{text-decoration:none}
 footer a:hover{color:var(--spruce)}
 
-/* single page-load moment: the hero card settles in */
+.toast{position:fixed;left:50%;bottom:28px;transform:translate(-50%,20px);background:var(--spruce);color:#fff;padding:14px 22px;border-radius:999px;font-size:.95rem;opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;z-index:50;max-width:calc(100% - 40px)}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
 @keyframes settle{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
-.demo{animation:settle .7s cubic-bezier(.2,.7,.2,1) .15s both}
 
 @media (max-width:960px){
-  .hero-grid,.split,.band .grid,.final-box{grid-template-columns:1fr;gap:44px}
+  .hero-top,.split{grid-template-columns:1fr;gap:36px}
   .split > .head{position:static}
-  .row{grid-template-columns:1fr;gap:8px}
+  .s-body{grid-template-columns:1fr}
+  .left{border-right:0;border-bottom:1.5px solid var(--spruce)}
+  .pair{grid-template-columns:1fr;gap:18px}
   .steps{grid-template-columns:1fr}
   .step,.step + .step{padding:28px 0;border-left:0;border-bottom:1px solid var(--line)}
   .plans{grid-template-columns:1fr}
@@ -180,10 +170,9 @@ footer a:hover{color:var(--spruce)}
 }
 @media (max-width:520px){
   .wrap{padding:0 20px}
-  .signals{grid-template-columns:1fr}
-  .demo{box-shadow:6px 6px 0 var(--spruce)}
-  .demo-foot{flex-direction:column;align-items:stretch}
-  .demo-foot p{text-align:left;max-width:none}
+  .studio{box-shadow:6px 6px 0 var(--spruce)}
+  .fake-btn{display:none}
+  .ai{flex-direction:column;align-items:stretch}
 }
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
@@ -194,18 +183,14 @@ footer a:hover{color:var(--spruce)}
 
 <header class="top">
   <div class="wrap nav">
-    <a href="#top" class="logo" aria-label="Betterleaf home">
-      <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#10281F"/><path d="M8 24c0-9 5-15 16-16 0 11-6 16-16 16z" fill="#2E7D5B"/><path d="M8 24L19 13" stroke="#F2C14E" stroke-width="2" stroke-linecap="round"/></svg>
-      Betterleaf
-    </a>
+    <a href="#top" class="logo" aria-label="Betterleaf home"><span class="wm">Betterlea<svg class="f-leaf" viewBox="-3 0 27 36" aria-hidden="true"><path d="M9 33.5V13" stroke="currentColor" stroke-width="4.6" stroke-linecap="round" fill="none"/><path d="M9 14C8.5 6 14.5 1 23 1.2 23.2 9.5 17.5 15 9 14Z" fill="#2E7D5B"/><path d="M9.6 13.4L20.5 3.4" stroke="#F2F4F0" stroke-width="1.2" stroke-linecap="round" fill="none"/><path d="M9 21.5C11 17.8 15.5 17.2 19.8 18.2 18.8 22 14 23.6 9 21.5Z" fill="#2E7D5B"/><path d="M9 21.5C7 17.8 2.5 17.2-1.8 18.2-.8 22 4 23.6 9 21.5Z" fill="#2E7D5B"/></svg></span></a>
     <ul>
-      <li><a href="#what">What it does</a></li>
-      <li><a href="#honest">Honest by design</a></li>
+      <li><a href="#problems">Why Betterleaf</a></li>
       <li><a href="#how">How it works</a></li>
       <li><a href="#pricing">Pricing</a></li>
       <li><a href="#faq">FAQ</a></li>
     </ul>
-    <a href="#join" class="btn sm">Get early access</a>
+    <button class="btn sm" type="button" data-upload>Upload your resume</button>
   </div>
 </header>
 
@@ -213,89 +198,78 @@ footer a:hover{color:var(--spruce)}
 
 <!-- HERO -->
 <div class="hero">
-  <div class="wrap hero-grid">
-    <div>
-      <h1>Your resume, reviewed like your best code.</h1>
-      <p class="lede">Betterleaf is an AI resume editor for software engineers. It turns “worked on backend stuff” into what you owned, how you did it, and what changed, using numbers only you provide.</p>
-      <div class="cta-row">
-        <a href="#join" class="btn">Start free</a>
-        <a href="#what" class="btn ghost">See what it does</a>
+  <div class="wrap">
+    <div class="hero-top">
+      <h1>Stop copy-pasting between ChatGPT and Overleaf.</h1>
+      <div>
+        <p class="lede">Betterleaf is a LaTeX resume workspace with AI that understands LaTeX. Upload your resume and start editing in 5 seconds. Edit by hand or with AI, preview live, download a clean one-page PDF.</p>
+        <button class="btn" type="button" data-upload>Upload your resume, it’s free</button>
+        <small>No credit card. Free tier included.</small>
+        <p class="who-for">Made for engineers and students who already write their resume in LaTeX.</p>
       </div>
-      <small>No card needed. Import a PDF or paste your current resume.</small>
     </div>
 
-    <div class="demo" aria-label="Interactive example of Betterleaf rewriting a resume bullet">
-      <div class="demo-bar"><span>Experience · Senior Engineer</span><span>Draft 3</span></div>
-      <div class="tabs" role="tablist" aria-label="Target role">
-        <button class="tab" role="tab" aria-selected="true" data-role="backend">Backend</button>
-        <button class="tab" role="tab" aria-selected="false" data-role="frontend">Frontend</button>
-        <button class="tab" role="tab" aria-selected="false" data-role="ml">ML</button>
-        <button class="tab" role="tab" aria-selected="false" data-role="infra">Infra / SRE</button>
+    <div class="studio" aria-label="Example of the Betterleaf editor fitting a resume onto one page">
+      <div class="s-bar">
+        <span class="s-tab">resume.tex</span>
+        <span class="s-right">
+          <span class="pill" id="pill">2 pages</span>
+          <span class="fake-btn" aria-hidden="true">PDF</span>
+          <span class="fake-btn" aria-hidden="true">.tex</span>
+        </span>
       </div>
-      <div class="demo-body">
-        <div class="exp-head"><b>Your bullet</b><span id="state-label">Before</span></div>
-        <div class="bullet" id="bullet" aria-live="polite"></div>
-      </div>
-      <div class="signals" aria-label="What a hiring manager looks for">
-        <div class="sig" id="s-scope"><b>Scope</b><span>What you owned</span></div>
-        <div class="sig" id="s-method"><b>Method</b><span>How you did it</span></div>
-        <div class="sig" id="s-result"><b>Result</b><span>What changed, measured</span></div>
-      </div>
-      <div class="ask" id="ask"></div>
-      <div class="demo-foot">
-        <button class="btn" id="go" type="button">Improve this bullet</button>
-        <p>Figures here are examples. Betterleaf asks for yours.</p>
+      <div class="s-body">
+        <div class="left">
+          <div class="code" id="code" aria-label="LaTeX source"></div>
+          <div class="ai">
+            <p id="ai-msg"></p>
+            <button class="btn" id="fit" type="button">Fit to one page</button>
+          </div>
+        </div>
+        <div class="right">
+          <div class="paper spill" id="paper" aria-label="Live PDF preview">
+            <div class="nm">Alex Rivera</div>
+            <div class="ct">alex@rivera.dev &nbsp;|&nbsp; github.com/arivera &nbsp;|&nbsp; Berlin</div>
+            <h4>Experience</h4>
+            <div class="rw"><b>Senior Software Engineer</b><span>2022 – Present</span></div>
+            <div class="rw"><i>Acme Cloud</i><i>Remote</i></div>
+            <ul>
+              <li id="p1"></li>
+              <li id="p2"></li>
+              <li id="p3"></li>
+            </ul>
+            <h4>Education</h4>
+            <div class="rw"><b>B.Sc. Computer Science, TU Munich</b><span>2018</span></div>
+            <div class="pb"><span>Page 2 starts here</span></div>
+            <div class="p2">
+              <h4>Skills</h4>
+              <div><b>Languages:</b> Go, Python, TypeScript, SQL</div>
+              <div><b>Tools:</b> Kubernetes, PostgreSQL, Terraform</div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- WHAT IT DOES -->
-<section id="what" style="background:var(--paper);border-top:1px solid var(--line);border-bottom:1px solid var(--line)">
-  <div class="wrap split">
-    <div class="head">
-      <h2>Built for how engineers actually work.</h2>
-      <p>General resume tools don’t know the difference between a migration and a refactor. Betterleaf does, and it edits like a reviewer who has read a lot of both.</p>
-    </div>
-    <div class="rows">
-      <div class="row">
-        <h3>Rewrites bullets around impact</h3>
-        <p>Every line is checked for scope, method and result. Where one is missing, Betterleaf asks you a short question instead of padding the sentence with adjectives.</p>
+<!-- PROBLEMS -->
+<section class="dark" id="problems">
+  <div class="wrap">
+    <h2>The resume loop you’re tired of, fixed.</h2>
+    <div class="pairs">
+      <div class="pair">
+        <div class="was"><span class="tag">Today</span><p>ChatGPT in one tab, Overleaf in another, and your resume going back and forth between them.</p></div>
+        <div class="now"><span class="tag">In Betterleaf</span><h3>One workspace for all of it.</h3><p>Edit, ask the AI, preview and download without leaving the page.</p></div>
       </div>
-      <div class="row">
-        <h3>Tailors to the job post</h3>
-        <p>Paste a listing and see which requirements your resume already proves, which it only hints at, and which are missing. Reorder and rephrase without changing the facts.</p>
+      <div class="pair">
+        <div class="was"><span class="tag">Today</span><p>ChatGPT gives you LaTeX that sometimes breaks, or a resume that runs onto a second page.</p></div>
+        <div class="now"><span class="tag">In Betterleaf</span><h3>AI that knows LaTeX and the one-page limit.</h3><p>It works on your actual document and keeps the page count in view.</p></div>
       </div>
-      <div class="row">
-        <h3>Speaks your stack</h3>
-        <p>It understands p95 versus p50, on-call load, blast radius, cold starts and cost per request, so your bullets sound like someone who was there.</p>
+      <div class="pair">
+        <div class="was"><span class="tag">Today</span><p>Most AI resume tools charge a lot before you’ve sent a single application.</p></div>
+        <div class="now"><span class="tag">In Betterleaf</span><h3>A free tier for everyone.</h3><p>Use the full editor for free with limited AI. Pay later only if you want more.</p></div>
       </div>
-      <div class="row">
-        <h3>One master resume, many versions</h3>
-        <p>Keep everything you’ve done in one place. Spin off a version for each application and see exactly what differs, line by line.</p>
-      </div>
-      <div class="row">
-        <h3>Plain, parseable output</h3>
-        <p>Single-column layout, real text, standard section names. Applicant tracking systems read it correctly, and so do people. Export to PDF or DOCX.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- HONEST -->
-<section class="band" id="honest">
-  <div class="wrap grid">
-    <div>
-      <h2>It asks. It doesn’t invent.</h2>
-      <p>A resume with made-up metrics falls apart in the first interview. Betterleaf never fills in a number you didn’t give it. If it doesn’t know the before and after, it asks, and if you don’t know either, it writes the strongest honest version without them.</p>
-    </div>
-    <div class="chat" role="img" aria-label="Example conversation where Betterleaf asks for a latency figure and then uses the answer">
-      <div class="who">Betterleaf</div>
-      <div class="msg bl">You mention speeding up the orders API. What was the p95 latency before and after?</div>
-      <div class="who r">You</div>
-      <div class="msg me">Around 800 ms before. Under 250 after.</div>
-      <div class="who">Draft</div>
-      <div class="msg out">Cut orders API p95 latency from <mark>~800 ms to under 250 ms</mark> by adding read-through caching and removing N+1 queries.</div>
     </div>
   </div>
 </section>
@@ -303,22 +277,22 @@ footer a:hover{color:var(--spruce)}
 <!-- HOW -->
 <section id="how">
   <div class="wrap">
-    <h2 style="max-width:16ch">From rough draft to sendable in one sitting.</h2>
+    <h2 style="max-width:16ch">From upload to editing in about 5 seconds.</h2>
     <div class="steps">
       <div class="step">
         <div class="n">1</div>
-        <h3>Bring what you have</h3>
-        <p>Upload a PDF, paste text, or import from LinkedIn. Betterleaf splits it into roles, projects and bullets.</p>
+        <h3>Upload your resume</h3>
+        <p>Drop in your current resume as a PDF or Word file. Your workspace opens with it already loaded.</p>
       </div>
       <div class="step">
         <div class="n">2</div>
-        <h3>Answer a few questions</h3>
-        <p>About two minutes of short prompts: how big, how fast, how many people. Skip any you can’t answer.</p>
+        <h3>Edit by hand or ask the AI</h3>
+        <p>Change the LaTeX directly, or describe the change in plain English. The preview updates as you go.</p>
       </div>
       <div class="step">
         <div class="n">3</div>
-        <h3>Tailor and export</h3>
-        <p>Pick a job post, accept the edits you like, and download a clean PDF or DOCX for that application.</p>
+        <h3>Download and apply</h3>
+        <p>Take away a clean PDF, or the .tex file if you want to keep working elsewhere.</p>
       </div>
     </div>
   </div>
@@ -327,30 +301,28 @@ footer a:hover{color:var(--spruce)}
 <!-- PRICING -->
 <section id="pricing" style="background:var(--paper);border-top:1px solid var(--line);border-bottom:1px solid var(--line)">
   <div class="wrap">
-    <h2 style="max-width:18ch">Pay when you’re actively applying.</h2>
+    <h2 style="max-width:18ch">Free to start. Paid options later.</h2>
     <div class="plans">
       <div class="plan">
         <h3>Free</h3>
         <div class="price">$0</div>
-        <p class="sub">Enough to fix your resume once.</p>
+        <p class="sub">For everyone, no card needed.</p>
         <ul>
-          <li><svg viewBox="0 0 20 20" fill="none" stroke="#2E7D5B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5l4 4 8-9"/></svg>One master resume</li>
-          <li><svg viewBox="0 0 20 20" fill="none" stroke="#2E7D5B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5l4 4 8-9"/></svg>10 bullet rewrites a day</li>
-          <li><svg viewBox="0 0 20 20" fill="none" stroke="#2E7D5B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5l4 4 8-9"/></svg>PDF export</li>
+          <li><svg viewBox="0 0 20 20" fill="none" stroke="#2E7D5B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5l4 4 8-9"/></svg>Full editor with live preview</li>
+          <li><svg viewBox="0 0 20 20" fill="none" stroke="#2E7D5B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5l4 4 8-9"/></svg>Limited AI usage</li>
+          <li><svg viewBox="0 0 20 20" fill="none" stroke="#2E7D5B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5l4 4 8-9"/></svg>PDF download</li>
         </ul>
-        <a href="#join" class="btn ghost">Start free</a>
+        <button class="btn" type="button" data-upload>Upload your resume, it’s free</button>
       </div>
-      <div class="plan pro">
-        <h3>Pro</h3>
-        <div class="price">$12 <small>/ month</small></div>
-        <p class="sub">For a job search with real momentum.</p>
+      <div class="plan soon">
+        <h3>Paid</h3>
+        <div class="price tba">Details coming soon</div>
+        <p class="sub">For when you want more.</p>
         <ul>
-          <li><svg viewBox="0 0 20 20" fill="none" stroke="#F2C14E" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5l4 4 8-9"/></svg>Unlimited rewrites</li>
-          <li><svg viewBox="0 0 20 20" fill="none" stroke="#F2C14E" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5l4 4 8-9"/></svg>Job-post tailoring and gap report</li>
-          <li><svg viewBox="0 0 20 20" fill="none" stroke="#F2C14E" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5l4 4 8-9"/></svg>Unlimited versions with line-by-line diffs</li>
-          <li><svg viewBox="0 0 20 20" fill="none" stroke="#F2C14E" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5l4 4 8-9"/></svg>PDF and DOCX export</li>
+          <li><svg viewBox="0 0 20 20" fill="none" stroke="#8FA398" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5l4 4 8-9"/></svg>More AI usage</li>
+          <li><svg viewBox="0 0 20 20" fill="none" stroke="#8FA398" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5l4 4 8-9"/></svg>Extras we’re still shaping</li>
         </ul>
-        <a href="#join" class="btn">Get early access</a>
+        <p class="sub">The free tier stays free. We’ll share paid plans before anything is charged.</p>
       </div>
     </div>
   </div>
@@ -359,51 +331,41 @@ footer a:hover{color:var(--spruce)}
 <!-- FAQ -->
 <section id="faq">
   <div class="wrap split">
-    <div class="head">
-      <h2>Questions engineers ask first.</h2>
-    </div>
+    <div class="head"><h2>Questions engineers ask first.</h2></div>
     <div class="faq">
       <details>
-        <summary>Will it make up metrics?</summary>
-        <p>No. Betterleaf only uses figures you give it. When a number is missing it asks, and you can leave it out. Anything you approximate is marked with a tilde so you remember to be ready to explain it.</p>
+        <summary>Do I need to know LaTeX?</summary>
+        <p>It helps, because you can edit the source directly. If you’d rather not, describe the change to the AI in plain English and it edits the LaTeX for you.</p>
       </details>
       <details>
-        <summary>Will my resume pass applicant tracking systems?</summary>
-        <p>Templates use a single column, real selectable text and standard section headings, which is what parsers handle best. No tables, icons or text in images.</p>
+        <summary>What can I upload?</summary>
+        <p>A PDF or Word version of your current resume. It loads straight into the editor.</p>
       </details>
       <details>
-        <summary>Does it work for roles outside backend and frontend?</summary>
-        <p>Yes. ML, data, infrastructure, security, mobile and embedded each have their own vocabulary and kinds of impact, and the questions Betterleaf asks change to match.</p>
+        <summary>What does the free tier include?</summary>
+        <p>The full editor, live preview, PDF download and a limited amount of AI usage. No card required.</p>
       </details>
       <details>
-        <summary>What happens to my data?</summary>
-        <p>Your resume is yours. You can export or delete it at any time. Add your privacy policy link here before launch.</p>
+        <summary>Can I take my resume with me?</summary>
+        <p>Yes. Download a PDF or the .tex file whenever you like.</p>
       </details>
       <details>
-        <summary>I’m early in my career. Is this still useful?</summary>
-        <p>Especially so. Internships, side projects and open-source work often have strong results that don’t get written down. Betterleaf helps you pull them out.</p>
+        <summary>What happens to my resume?</summary>
+        <p>It’s yours. You can download or delete it at any time.</p>
       </details>
     </div>
   </div>
 </section>
 
 <!-- FINAL CTA -->
-<div class="final" id="join">
+<div class="final">
   <div class="wrap">
     <div class="final-box">
       <div>
-        <h2>Send the version that sounds like you at your best.</h2>
-        <p>Join the early access list and get your first full resume review free.</p>
+        <h2>Your resume, ready to edit in 5 seconds.</h2>
+        <p>No credit card. Free tier included.</p>
       </div>
-      <form class="wl" id="wl" novalidate>
-        <label for="email">Email address</label>
-        <div class="field">
-          <input id="email" name="email" type="email" placeholder="you@company.dev" autocomplete="email" required>
-          <button class="btn" type="submit">Join the list</button>
-        </div>
-        <div id="wl-msg" role="status"></div>
-        <p class="fine">One email when your spot opens. Nothing else.</p>
-      </form>
+      <button class="btn" type="button" data-upload>Upload your resume, it’s free</button>
     </div>
   </div>
 </div>
@@ -412,7 +374,7 @@ footer a:hover{color:var(--spruce)}
 
 <footer>
   <div class="wrap">
-    <span>© <span id="yr">2026</span> Betterleaf</span>
+    <span>© <span id="yr">2026</span> Betterleaf. Built by an engineer who got tired of the copy-paste loop.</span>
     <nav>
       <a href="#">Privacy</a>
       <a href="#">Terms</a>
@@ -421,83 +383,77 @@ footer a:hover{color:var(--spruce)}
   </div>
 </footer>
 
+<input type="file" id="file" accept=".pdf,.doc,.docx,application/pdf" hidden>
+<div class="toast" id="toast" role="status"></div>
+
 <script>
 (function(){
-  /* ---------- Demo ---------- */
-  var data = {
-    backend:{
-      before:"Worked on improving the API performance for the team.",
-      after:"Cut orders API p95 latency from <mark>840 ms to 210 ms</mark> by adding read-through caching and removing N+1 queries, holding error rate under <mark>0.1%</mark> at <mark>3k req/s</mark>.",
-      ask:"<b>Betterleaf asks:</b> What was the p95 before and after, and at what traffic?"
-    },
-    frontend:{
-      before:"Responsible for building new features on the website.",
-      after:"Rebuilt checkout in React and TypeScript, trimming Largest Contentful Paint from <mark>4.1 s to 1.6 s</mark> and lifting mobile conversion by <mark>9%</mark>.",
-      ask:"<b>Betterleaf asks:</b> Which page, and what moved after launch: load time, conversion, errors?"
-    },
-    ml:{
-      before:"Built machine learning models for recommendations.",
-      after:"Shipped a two-tower retrieval model serving <mark>12M users</mark>, raising click-through <mark>7%</mark> in an A/B test and cutting inference cost <mark>38%</mark> with quantization.",
-      ask:"<b>Betterleaf asks:</b> How was it evaluated, and how many users saw it?"
-    },
-    infra:{
-      before:"Helped with on-call and infrastructure stuff.",
-      after:"Led migration of <mark>140 services</mark> to Kubernetes with zero-downtime cutovers, cutting pager volume <mark>55%</mark> by replacing noisy alerts with SLO burn-rate alerts.",
-      ask:"<b>Betterleaf asks:</b> How many services, and what changed in on-call after the move?"
-    }
-  };
-  var role="backend", improved=false, touched=false;
-  var bullet=document.getElementById("bullet"),
-      label=document.getElementById("state-label"),
-      ask=document.getElementById("ask"),
-      go=document.getElementById("go"),
-      sigs=["s-scope","s-method","s-result"].map(function(i){return document.getElementById(i)});
-  var qIcon='<svg viewBox="0 0 20 20" fill="none" stroke="#2E7D5B" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="8"/><path d="M7.8 7.8a2.3 2.3 0 114 1.5c-.8.7-1.8 1-1.8 2.2M10 14.2v.1"/></svg>';
+  /* ---------- Upload ---------- */
+  // Set APP_URL to your workspace (e.g. "https://app.betterleaf.app/new"). Replace
+  // handleUpload() with your real upload call, then redirect into the workspace.
+  var APP_URL = "";
+  var fileInput=document.getElementById("file"), toast=document.getElementById("toast"), tt;
+  function say(t){ toast.textContent=t; toast.classList.add("show"); clearTimeout(tt); tt=setTimeout(function(){toast.classList.remove("show")},4200); }
+  function handleUpload(file){
+    if(APP_URL){ window.location.href=APP_URL; return; }
+    say("Got " + file.name + ". Your workspace opens here once the app is connected.");
+  }
+  document.querySelectorAll("[data-upload]").forEach(function(b){ b.addEventListener("click",function(){ fileInput.click(); }); });
+  fileInput.addEventListener("change",function(){ if(fileInput.files[0]) handleUpload(fileInput.files[0]); fileInput.value=""; });
+
+  /* ---------- Editor demo ---------- */
+  var B1L="Cut orders API p95 latency from 840 ms to 210 ms by adding read-through caching, removing N+1 queries, and tuning connection pooling across all services.";
+  var B1S="Cut orders API p95 latency from 840 ms to 210 ms with read-through caching and N+1 query fixes.";
+  var B2L="Led migration of 140 services to Kubernetes with zero-downtime cutovers and replaced noisy alerts with SLO burn-rate alerts.";
+  var B2S="Led migration of 140 services to Kubernetes with zero-downtime cutovers.";
+  var B3="Mentored four engineers and ran weekly design reviews.";
+
+  function lines(fit){
+    var a=[
+      [String.raw`\section{Experience}`,0],
+      [String.raw`\resumeSubheading`,0],
+      [String.raw`  {Senior Software Engineer}{2022 -- Present}`,0],
+      [String.raw`  {Acme Cloud}{Remote}`,0],
+      [String.raw`\resumeItemListStart`,0],
+      [String.raw`  \resumeItem{`+(fit?B1S:B1L)+`}`,fit],
+      [String.raw`  \resumeItem{`+(fit?B2S:B2L)+`}`,fit],
+      [String.raw`  \resumeItem{`+B3+`}`,0],
+      [String.raw`\resumeItemListEnd`,0]
+    ];
+    if(fit) a.push([String.raw`\vspace{-6pt}`,1]);
+    a.push([String.raw`\section{Education}`,0]);
+    a.push([String.raw`% ... Education, then \section{Skills}`,0]);
+    return a;
+  }
+  function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
+  function hl(s){
+    if(s.charAt(0)==="%") return '<span class="br">'+esc(s)+'</span>';
+    return esc(s).replace(/(\\[a-zA-Z]+)/g,'<span class="cmd">$1</span>').replace(/([{}])/g,'<span class="br">$1</span>');
+  }
+  var code=document.getElementById("code"), paper=document.getElementById("paper"),
+      pill=document.getElementById("pill"), aiMsg=document.getElementById("ai-msg"),
+      btn=document.getElementById("fit"), fit=false, touched=false;
 
   function render(){
-    var d=data[role];
-    bullet.classList.add("swap");
-    setTimeout(function(){
-      bullet.innerHTML = improved ? d.after : '<span class="old">'+d.before+'</span>';
-      label.textContent = improved ? "After" : "Before";
-      go.textContent = improved ? "Show the original" : "Improve this bullet";
-      sigs.forEach(function(s,i){
-        setTimeout(function(){ s.classList.toggle("on", improved); }, improved ? i*140 : 0);
-      });
-      ask.innerHTML = qIcon + "<div>" + (improved ? d.ask : "<b>Betterleaf notices:</b> no scope, no method, no measurable result.") + "</div>";
-      bullet.classList.remove("swap");
-    }, 180);
+    code.innerHTML=lines(fit).map(function(l,i){
+      return '<div class="ln'+(l[1]?' chg':'')+'"><span class="no">'+(i+1)+'</span><span class="tx">'+hl(l[0])+'</span></div>';
+    }).join("");
+    var p1=document.getElementById("p1"),p2=document.getElementById("p2"),p3=document.getElementById("p3");
+    p1.textContent=fit?B1S:B1L; p2.textContent=fit?B2S:B2L; p3.textContent=B3;
+    [p1,p2].forEach(function(e){ e.classList.toggle("hl",fit); if(fit) setTimeout(function(){e.classList.remove("hl")},1600); });
+    paper.classList.toggle("spill",!fit);
+    pill.textContent=fit?"1 page":"2 pages";
+    pill.classList.toggle("ok",fit);
+    aiMsg.innerHTML=fit
+      ? "<b>Shortened two bullets and tightened spacing.</b> Compiled: 1 page."
+      : "<b>Compiled: 2 pages.</b> The Skills section spills onto page 2.";
+    btn.textContent=fit?"Undo":"Fit to one page";
   }
-  document.querySelectorAll(".tab").forEach(function(t){
-    t.addEventListener("click",function(){
-      touched=true;
-      document.querySelectorAll(".tab").forEach(function(o){o.setAttribute("aria-selected","false")});
-      t.setAttribute("aria-selected","true");
-      role=t.dataset.role;
-      render();
-    });
-  });
-  go.addEventListener("click",function(){ touched=true; improved=!improved; render(); });
+  btn.addEventListener("click",function(){ touched=true; fit=!fit; render(); });
   render();
-  // one gentle run on load so the point lands without a click
   if(!window.matchMedia("(prefers-reduced-motion: reduce)").matches){
-    setTimeout(function(){ if(!touched){ improved=true; render(); } }, 2200);
+    setTimeout(function(){ if(!touched){ fit=true; render(); } },2600);
   }
-
-  /* ---------- Waitlist ---------- */
-  // Set ENDPOINT to your form backend (Formspree, Basin, your API) to collect emails.
-  var ENDPOINT = "";
-  var form=document.getElementById("wl"), msg=document.getElementById("wl-msg"), email=document.getElementById("email");
-  form.addEventListener("submit",function(e){
-    e.preventDefault();
-    var v=email.value.trim();
-    if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)){ msg.textContent="Enter a valid email address."; email.focus(); return; }
-    function ok(){ msg.textContent="You’re on the list. We’ll email you when your spot opens."; form.reset(); }
-    if(!ENDPOINT){ ok(); return; }
-    fetch(ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({email:v})})
-      .then(function(r){ r.ok ? ok() : (msg.textContent="Something went wrong. Please try again."); })
-      .catch(function(){ msg.textContent="Couldn’t reach the server. Please try again."; });
-  });
   document.getElementById("yr").textContent=new Date().getFullYear();
 })();
 </script>

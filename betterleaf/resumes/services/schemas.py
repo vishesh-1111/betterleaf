@@ -8,6 +8,16 @@ are used to validate the model output before it reaches the rest of the app.
 from pydantic import BaseModel
 from pydantic import Field
 
+# Canonical set of section keys a resume may carry. NOT a rendering order; the
+# order sections appear in is dynamic and captured via ``section_order``.
+SECTION_KEYS = (
+    "education",
+    "experience",
+    "projects",
+    "technical_skills",
+    "achievements",
+)
+
 
 class ContactInfo(BaseModel):
     """Contact details; every field is optional."""
@@ -64,3 +74,10 @@ class ResumeData(BaseModel):
     education: list[Education] = Field(default_factory=list)
     projects: list[Project] = Field(default_factory=list)
     achievements: list[Achievement] = Field(default_factory=list)
+    section_order: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Optional ordered list of section keys as they should render. "
+            "Inferred from the source key order when absent."
+        ),
+    )

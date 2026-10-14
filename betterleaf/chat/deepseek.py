@@ -110,8 +110,8 @@ async def stream_chat(
         "messages": messages,
         "stream": True,
         # Force thinking mode off regardless of model default.
-        # "reasoning_effort": "none",
-        # "thinking": {"type": "disabled"},
+        "reasoning_effort": "none",
+        "thinking": {"type": "disabled"},
     }
 
     headers = {

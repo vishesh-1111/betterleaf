@@ -13,6 +13,7 @@ from django.conf import settings
 from pydantic import ValidationError
 
 from betterleaf.resumes.services.schemas import ResumeData
+from betterleaf.resumes.services.schemas import SECTION_KEYS
 
 _HTTP_OK = 200
 
@@ -69,6 +70,11 @@ def _parse_markdown(markdown: str) -> ResumeData:
         "model": settings.DEEPSEEK_MODEL,
         "messages": _build_messages(markdown),
         "response_format": {"type": "json_object"},
+        # Cap output — a structured resume needs nowhere near DeepSeek's default
+        # max; without this the model pads completion tokens, adding latency.
+        "max_tokens": 2000,
+        # Cache the fixed system prompt so it isn't re-processed each request.
+        "stream": False,
     }
     headers = {
         "Authorization": f"Bearer {settings.DEEPSEEK_API_KEY}",
@@ -96,6 +102,12 @@ def _parse_markdown(markdown: str) -> ResumeData:
     except (KeyError, IndexError, TypeError, json.JSONDecodeError) as exc:
         msg = "DeepSeek returned malformed output"
         raise ResumeParseError(msg) from exc
+
+    # Capture the LLM's section ordering (JSON key order) so rendering can
+    # follow it instead of a fixed template order.
+    section_order = [k for k in raw if k in SECTION_KEYS and raw.get(k)]
+    if section_order:
+        raw["section_order"] = section_order
 
     try:
         return ResumeData.model_validate(raw)

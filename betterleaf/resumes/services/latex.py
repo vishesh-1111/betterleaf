@@ -6,25 +6,24 @@ template starter (``template_src/jakes/starter.tex``). The output is usable as
 the ``main_tex`` of a :class:`betterleaf.resumes.models.Resume`.
 
 Determinism guarantees:
-- Section order is fixed (Education, Experience, Projects, Technical Skills,
-  Achievements) regardless of the order keys appear in the input JSON.
+- Section order is dynamic: it follows ``section_order`` (inferred from the
+  input JSON's key order) when available, with a fixed fallback for any
+  remaining sections.
 - Any subset of optional contact fields renders in a stable order.
 - Every user string is LaTeX-escaped, so ``&``, ``%``, ``_``, ``#``, etc. in
   resume content cannot break compilation.
 - Empty sections are omitted entirely.
 """
 
-from betterleaf.resumes.services.schemas import ResumeData
+import json
 
-# Fixed, canonical section order. Input JSON may list keys in any order; the
-# generator always renders sections in this sequence and skips empty ones.
-_SECTION_ORDER = (
-    "education",
-    "experience",
-    "projects",
-    "technical_skills",
-    "achievements",
-)
+from betterleaf.resumes.services.schemas import ResumeData
+from betterleaf.resumes.services.schemas import SECTION_KEYS
+
+# Fallback section order, used only when the input carries no explicit
+# ``section_order``. Sections present in neither ``section_order`` nor this
+# fallback still render (appended in ``SECTION_KEYS`` order).
+_FALLBACK_ORDER = SECTION_KEYS
 
 _LATEX_ESCAPES = {
     "\\": r"\textbackslash{}",
@@ -52,28 +51,44 @@ def _join(items: list[str], sep: str) -> str:
 # --- Section renderers -----------------------------------------------------
 
 
+def _normalize_https(value: str, prefix: str) -> str:
+    """Return ``value`` as an absolute URL, prepending ``prefix`` when it is
+    a bare handle/username rather than an already-absolute URL."""
+    value = value.strip()
+    if value.startswith(("http://", "https://")):
+        return value
+    return f"{prefix}{value}"
+
+
+def _link(url: str, label: str) -> str:
+    """Render a clickable word: ``label`` links to ``url``, no URL shown."""
+    return rf"\href{{{_escape(url)}}}{{\underline{{{_escape(label)}}}}}"
+
+
 def _render_heading(data: ResumeData) -> str:
-    """Name and contact line; contact fields are all optional."""
+    """Name and contact line; contact fields are all optional.
+
+    Each URL-backed field renders as a short clickable word (no ``https://``
+    or raw URL text): GitHub shows the bare username, LinkedIn and Portfolio
+    show fixed labels.
+    """
     contact = data.contact
     parts: list[str] = []
     if contact.phone:
-        parts.append(contact.phone)
+        parts.append(_escape(contact.phone))
     if contact.email:
         parts.append(
             rf"\href{{mailto:{_escape(contact.email)}}}{{\underline{{{_escape(contact.email)}}}}}"
         )
     if contact.linkedin:
-        parts.append(
-            rf"\href{{https://{_escape(contact.linkedin)}}}{{\underline{{{_escape(contact.linkedin)}}}}}"
-        )
+        url = _normalize_https(contact.linkedin, "https://linkedin.com/in/")
+        parts.append(_link(url, "LinkedIn"))
     if contact.github:
-        parts.append(
-            rf"\href{{https://{_escape(contact.github)}}}{{\underline{{{_escape(contact.github)}}}}}"
-        )
+        url = _normalize_https(contact.github, "https://github.com/")
+        parts.append(_link(url, contact.github.strip()))
     if contact.portfolio:
-        parts.append(
-            rf"\href{{https://{_escape(contact.portfolio)}}}{{\underline{{{_escape(contact.portfolio)}}}}}"
-        )
+        url = _normalize_https(contact.portfolio, "https://")
+        parts.append(_link(url, "Portfolio"))
 
     inner = [rf"\textbf{{\Huge \scshape {_escape(data.name)}}}"]
     if parts:
@@ -135,13 +150,11 @@ def _render_projects(items: list) -> str:
 
         links: list[str] = []
         if proj.get("github"):
-            links.append(
-                rf"\href{{https://{_escape(proj['github'])}}}{{\underline{{GitHub}}}}"
-            )
+            url = _normalize_https(proj["github"], "https://github.com/")
+            links.append(rf"\href{{{_escape(url)}}}{{\underline{{GitHub}}}}")
         if proj.get("deployed"):
-            links.append(
-                rf"\href{{https://{_escape(proj['deployed'])}}}{{\underline{{Live}}}}"
-            )
+            url = _normalize_https(proj["deployed"], "https://")
+            links.append(rf"\href{{{_escape(url)}}}{{\underline{{Live}}}}")
         if links:
             lines.append(
                 "          \\resumeItemListStart\n"
@@ -162,15 +175,20 @@ def _render_projects(items: list) -> str:
 
 
 def _render_skills(items: list) -> str:
-    lines = ["\\section{Technical Skills}\n  \\resumeSubHeadingListStart"]
-    skills = [
+    rows = [
         rf"\textbf{{{_escape(skill['key'])}}}: {_escape(skill['value'])}"
         for skill in items
         if skill.get("key") or skill.get("value")
     ]
-    if skills:
-        lines.append("    \\item{\n      " + "\n      \\hfill\n      ".join(skills) + "\n    }")
-    lines.append("  \\resumeSubHeadingListEnd")
+    body = " \\\\\n      ".join(rows)
+    lines = [
+        "\\section{Technical Skills}",
+        "  \\begin{itemize}[leftmargin=0.15in, label={}]",
+        "    \\small{\\item{",
+        "      " + body,
+        "    }}",
+        "  \\end{itemize}",
+    ]
     return "\n".join(lines)
 
 
@@ -178,9 +196,7 @@ def _render_achievements(items: list) -> str:
     lines = ["\\section{Achievements}\n  \\resumeSubHeadingListStart"]
     for ach in items:
         lines.append(
-            "    \\resumeSubheading\n"
-            f"      {{{_escape(ach['title'])}}}{{}}\n"
-            f"      {{}}{{}}"
+            rf"    \item\textbf{{{_escape(ach['title'])}}}"
         )
         bullets = ach.get("bullets") or []
         if bullets:
@@ -289,7 +305,7 @@ _PREAMBLE = r"""%-------------------------
 
 \newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=*]}
 \newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
-\newcommand{\resumeItemListStart}{\begin{itemize}}
+\newcommand{\resumeItemListStart}{\begin{itemize}[itemsep=0pt, topsep=0pt, parsep=0pt, partopsep=0pt]}
 \newcommand{\resumeItemListEnd}{\end{itemize}\vspace{-5pt}}
 
 %-------------------------------------------
@@ -297,15 +313,26 @@ _PREAMBLE = r"""%-------------------------
 """
 
 
+def _section_keys_in_order(data: ResumeData) -> list[str]:
+    """Return section keys in render order, honoring ``section_order``.
+
+    Non-empty sections follow ``data.section_order`` (explicit or LLM-inferred
+    key order); any remaining non-empty sections are appended in the fallback
+    ordering so no content is dropped.
+    """
+    dumped = data.model_dump()
+    present = {k for k in SECTION_KEYS if dumped.get(k)}
+    ordered = [k for k in data.section_order if k in present]
+    ordered += [k for k in _FALLBACK_ORDER if k in present and k not in ordered]
+    return ordered
+
+
 def _render_sections(data: ResumeData) -> str:
-    """Render non-empty sections in the fixed canonical order."""
+    """Render non-empty sections in the order of ``data.section_order``."""
     dumped = data.model_dump()
     sections: list[str] = []
-    for key in _SECTION_ORDER:
-        items = dumped.get(key) or []
-        if not items:
-            continue
-        sections.append(_SECTION_RENDERERS[key](items))
+    for key in _section_keys_in_order(data):
+        sections.append(_SECTION_RENDERERS[key](dumped[key]))
     return "\n\n\n".join(sections)
 
 
@@ -314,15 +341,27 @@ def render_resume(data: ResumeData | dict | str | bytes) -> str:
 
     Accepts a validated :class:`ResumeData`, a dict, a JSON string, or JSON
     bytes. Returns the complete LaTeX source.
+
+    Section order follows ``ResumeData.section_order`` when present; otherwise
+    it is inferred from the input's key order (a dict/JSON carries the LLM's
+    section sequence) with a fixed fallback for any remaining sections.
     """
     if isinstance(data, ResumeData):
         model = data
-    elif isinstance(data, bytes):
-        model = ResumeData.model_validate_json(data)
-    elif isinstance(data, str):
-        model = ResumeData.model_validate_json(data)
     else:
-        model = ResumeData.model_validate(data)
+        if isinstance(data, bytes):
+            raw = json.loads(data)
+        elif isinstance(data, str):
+            raw = json.loads(data)
+        else:
+            raw = data or {}
+        if not isinstance(raw, dict):
+            model = ResumeData.model_validate(data)
+        else:
+            section_order = [k for k in raw if k in SECTION_KEYS and raw.get(k)]
+            if section_order:
+                raw = {**raw, "section_order": section_order}
+            model = ResumeData.model_validate(raw)
 
     heading = _render_heading(model)
     body = _render_sections(model)
