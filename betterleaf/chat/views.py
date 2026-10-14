@@ -1,9 +1,5 @@
 import json
 import re
-import shutil
-import subprocess
-import tempfile
-from pathlib import Path
 
 from django.conf import settings
 from django.http import StreamingHttpResponse
@@ -16,8 +12,8 @@ from betterleaf.chat.serializers import ChatRequestSerializer
 from betterleaf.resumes.auth import get_workspace
 from betterleaf.resumes.catalog import TEMPLATE_CATALOG
 from betterleaf.resumes.models import Resume
-
-TECTONIC_TIMEOUT = 30
+from betterleaf.resumes.services.compiler import LatexCompileError
+from betterleaf.resumes.services.compiler import compile_latex
 
 _FENCE_RE = re.compile(r"```(?:latex|tex)?\s*\n(.*?)```", re.DOTALL)
 
@@ -38,32 +34,20 @@ def _extract_latex(text: str) -> str | None:
 
 
 def _compile(resume: Resume, latex: str) -> tuple[bool, str]:
-    """Synchronously compile ``latex`` with tectonic.
+    """Synchronously compile ``latex`` via the texlive service.
 
     Returns ``(success, log)``. Mirrors ``resumes.tasks.compile_resume`` but runs
     inline so the chat view can decide whether to persist the new source.
     """
     template = TEMPLATE_CATALOG[resume.template]
-    tmpdir = Path(tempfile.mkdtemp(prefix="betterleaf-chat-compile-"))
+    extra_files: dict[str, bytes] = {}
+    if template.cls_path is not None:
+        extra_files["resume.cls"] = template.cls_path.read_bytes()
     try:
-        (tmpdir / "main.tex").write_text(latex)
-        if template.cls_path is not None:
-            shutil.copy(template.cls_path, tmpdir / "resume.cls")
-        proc = subprocess.run(  # noqa: S603 — pinned trusted binary, no shell
-            ["tectonic", "--outdir", str(tmpdir), "main.tex"],  # noqa: S607
-            cwd=tmpdir,
-            capture_output=True,
-            text=True,
-            timeout=TECTONIC_TIMEOUT,
-            check=False,
-        )
-        log = (proc.stdout or "") + (proc.stderr or "")
-        pdf_path = tmpdir / "main.pdf"
-        return (proc.returncode == 0 and pdf_path.exists()), log
-    except subprocess.TimeoutExpired:
-        return False, f"Compilation timed out after {TECTONIC_TIMEOUT}s."
-    finally:
-        shutil.rmtree(tmpdir, ignore_errors=True)
+        status, log, _pdf = compile_latex(latex, extra_files=extra_files)
+    except LatexCompileError as exc:
+        return False, str(exc)
+    return status == 0, log
 
 
 def _build_system_prompt(system: str, resume: Resume | None) -> str:

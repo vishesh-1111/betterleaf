@@ -1,16 +1,11 @@
-import shutil
-import subprocess
-import tempfile
-from pathlib import Path
-
 from celery import shared_task
 from django.core.files.base import ContentFile
 from django.utils import timezone
 
 from betterleaf.resumes.catalog import TEMPLATE_CATALOG
 from betterleaf.resumes.models import Compilation
-
-TECTONIC_TIMEOUT = 30
+from betterleaf.resumes.services.compiler import LatexCompileError
+from betterleaf.resumes.services.compiler import compile_latex
 
 
 @shared_task
@@ -24,41 +19,38 @@ def compile_resume(compilation_id: str) -> None:
     resume = compilation.resume
     compilation.status = Compilation.Status.RUNNING
     compilation.save(update_fields=["status"])
-    template = TEMPLATE_CATALOG[resume.template]
-    tmpdir = Path(tempfile.mkdtemp(prefix="betterleaf-compile-"))
+
     try:
-        (tmpdir / "main.tex").write_text(resume.main_tex)
-        if template.cls_path is not None:
-            shutil.copy(template.cls_path, tmpdir / "resume.cls")
-        proc = subprocess.run(  # noqa: S603 — pinned trusted binary, no shell
-            ["tectonic", "--outdir", str(tmpdir), "main.tex"],  # noqa: S607
-            cwd=tmpdir,
-            capture_output=True,
-            text=True,
-            timeout=TECTONIC_TIMEOUT,
-            check=False,
-        )
-        log = (proc.stdout or "") + (proc.stderr or "")
-        pdf_path = tmpdir / "main.pdf"
-        if proc.returncode == 0 and pdf_path.exists():
-            compilation.pdf.save(
-                f"{resume.slug}.pdf", ContentFile(pdf_path.read_bytes()), save=False,
-            )
-            compilation.status = Compilation.Status.SUCCEEDED
-        else:
-            compilation.status = Compilation.Status.FAILED
-        compilation.log = log
-        compilation.finished_at = timezone.now()
-        compilation.save()
-    except subprocess.TimeoutExpired:
-        compilation.status = Compilation.Status.FAILED
-        compilation.log = f"Compilation timed out after {TECTONIC_TIMEOUT}s."
-        compilation.finished_at = timezone.now()
-        compilation.save()
+        template = TEMPLATE_CATALOG[resume.template]
     except KeyError:
         compilation.status = Compilation.Status.FAILED
         compilation.log = f"Unknown template: {resume.template}"
         compilation.finished_at = timezone.now()
         compilation.save()
-    finally:
-        shutil.rmtree(tmpdir, ignore_errors=True)
+        return
+
+    extra_files: dict[str, bytes] = {}
+    if template.cls_path is not None:
+        extra_files["resume.cls"] = template.cls_path.read_bytes()
+
+    try:
+        status, log, pdf = compile_latex(
+            resume.main_tex, extra_files=extra_files,
+        )
+    except LatexCompileError as exc:
+        compilation.status = Compilation.Status.FAILED
+        compilation.log = str(exc)
+        compilation.finished_at = timezone.now()
+        compilation.save()
+        return
+
+    if status == 0 and pdf:
+        compilation.pdf.save(
+            f"{resume.slug}.pdf", ContentFile(pdf), save=False,
+        )
+        compilation.status = Compilation.Status.SUCCEEDED
+    else:
+        compilation.status = Compilation.Status.FAILED
+    compilation.log = log
+    compilation.finished_at = timezone.now()
+    compilation.save()

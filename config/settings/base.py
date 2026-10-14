@@ -400,6 +400,10 @@ DEEPSEEK_MODEL = env("DEEPSEEK_MODEL", default="deepseek-v4-pro")
 DEEPSEEK_BASE_URL = env("DEEPSEEK_BASE_URL", default="https://api.deepseek.com")
 DEEPSEEK_API_URL = DEEPSEEK_BASE_URL.rstrip("/") + "/chat/completions"
 
+# LaTeX compilation — texlive Docker microservice (compose/local/latex-server)
+# ------------------------------------------------------------------------------
+LATEX_API_URL = env("LATEX_API_URL", default="http://localhost:7030").rstrip("/")
+
 # By Default swagger ui is available only to admin user(s). You can change permission classes to change that
 # See more configuration options at https://drf-spectacular.readthedocs.io/en/latest/settings.html#settings
 SPECTACULAR_SETTINGS = {
