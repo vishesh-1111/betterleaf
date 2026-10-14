@@ -48,6 +48,19 @@ def _join(items: list[str], sep: str) -> str:
     return sep.join(item for item in items if item)
 
 
+def _bullet_text(bullet) -> str:
+    """Extract the plain-text content of a bullet.
+
+    Bullets are stored as ``{"id": ..., "text": ...}`` dicts (see
+    :class:`betterleaf.resumes.services.schemas.Bullet`). Accept a dict for
+    the validated path and fall back to a bare string for inputs that reached
+    us pre-validation.
+    """
+    if isinstance(bullet, dict):
+        return bullet.get("text") or ""
+    return bullet or ""
+
+
 # --- Section renderers -----------------------------------------------------
 
 
@@ -135,7 +148,7 @@ def _render_experience(items: list) -> str:
             lines.append("      \\resumeItemListStart")
             for bullet in bullets:
                 lines.append(
-                    f"        \\resumeItemPlain{{{_escape(bullet)}}}"
+                    f"        \\resumeItemPlain{{{_escape(_bullet_text(bullet))}}}"
                 )
             lines.append("      \\resumeItemListEnd")
     lines.append("  \\resumeSubHeadingListEnd")
@@ -172,7 +185,7 @@ def _render_projects(items: list) -> str:
             lines.append("          \\resumeItemListStart")
             for bullet in bullets:
                 lines.append(
-                    f"            \\resumeItemPlain{{{_escape(bullet)}}}"
+                    f"            \\resumeItemPlain{{{_escape(_bullet_text(bullet))}}}"
                 )
             lines.append("          \\resumeItemListEnd")
     lines.append("  \\resumeSubHeadingListEnd")
@@ -208,7 +221,7 @@ def _render_achievements(items: list) -> str:
             lines.append("      \\resumeItemListStart")
             for bullet in bullets:
                 lines.append(
-                    f"        \\resumeItemPlain{{{_escape(bullet)}}}"
+                    f"        \\resumeItemPlain{{{_escape(_bullet_text(bullet))}}}"
                 )
             lines.append("      \\resumeItemListEnd")
     lines.append("  \\resumeSubHeadingListEnd")

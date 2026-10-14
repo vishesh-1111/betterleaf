@@ -3,6 +3,7 @@ from rest_framework import serializers
 from betterleaf.resumes.catalog import TEMPLATE_CATALOG
 from betterleaf.resumes.models import Compilation
 from betterleaf.resumes.models import Resume
+from betterleaf.resumes.models import ResumeEditProposal
 
 
 class TemplateSerializer(serializers.Serializer):
@@ -56,6 +57,20 @@ class ResumeListSerializer(serializers.ModelSerializer):
         model = Resume
         fields = ["id", "title", "slug", "template", "main_tex", "updated_at"]
         read_only_fields = ["id", "slug", "updated_at"]
+
+
+class ProposalSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ResumeEditProposal
+        fields = [
+            "id",
+            "resume",
+            "prompt",
+            "changes",
+            "status",
+            "created_at",
+        ]
+        read_only_fields = ["id", "resume", "changes", "status", "created_at"]
 
 
 class CompilationSerializer(serializers.ModelSerializer):

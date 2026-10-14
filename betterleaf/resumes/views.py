@@ -15,16 +15,21 @@ from betterleaf.resumes.auth import new_anonymous_token
 from betterleaf.resumes.catalog import TEMPLATE_CATALOG
 from betterleaf.resumes.models import Compilation
 from betterleaf.resumes.models import Resume
+from betterleaf.resumes.models import ResumeEditProposal
 from betterleaf.resumes.models import Workspace
 from betterleaf.resumes.permissions import HasWorkspace
 from betterleaf.resumes.serializers import CompilationSerializer
+from betterleaf.resumes.serializers import ProposalSerializer
 from betterleaf.resumes.serializers import ResumeListSerializer
 from betterleaf.resumes.serializers import ResumeSerializer
 from betterleaf.resumes.serializers import TemplateSerializer
+from betterleaf.resumes.services import proposals as proposal_service
 from betterleaf.resumes.services.extract import pdf_to_text
 from betterleaf.resumes.services.latex import render_resume
 from betterleaf.resumes.services.parser import ResumeParseError
 from betterleaf.resumes.services.parser import extract_resume
+from betterleaf.resumes.services.rewrite import rewrite_resume
+from betterleaf.resumes.services.schemas import ResumeData
 from betterleaf.resumes.tasks import compile_resume
 
 
@@ -78,11 +83,13 @@ class UploadPdfView(APIView):
             tex = render_resume(data)
         except ValueError as exc:
             return Response(
-                {"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST,
+                {"detail": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
             )
         except ResumeParseError as exc:
             return Response(
-                {"detail": str(exc)}, status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                {"detail": str(exc)},
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
             )
 
         workspace = get_workspace(request)
@@ -134,7 +141,8 @@ class WorkspaceView(APIView):
                 expires_at=timezone.now() + ANONYMOUS_WORKSPACE_TTL,
             )
         resumes = ResumeListSerializer(
-            Resume.objects.filter(workspace=workspace), many=True,
+            Resume.objects.filter(workspace=workspace),
+            many=True,
         ).data
         data = {
             "workspace_id": str(workspace.id),
@@ -192,7 +200,8 @@ class ResumeViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         compilation = Compilation.objects.create(
-            resume=resume, status=Compilation.Status.QUEUED,
+            resume=resume,
+            status=Compilation.Status.QUEUED,
         )
         compile_resume.delay(str(compilation.id))
         return Response(
@@ -205,7 +214,8 @@ class ResumeViewSet(viewsets.ModelViewSet):
         resume = self.get_object()
         latest = (
             Compilation.objects.filter(
-                resume=resume, status=Compilation.Status.SUCCEEDED,
+                resume=resume,
+                status=Compilation.Status.SUCCEEDED,
             )
             .exclude(pdf="")
             .order_by("-finished_at")
@@ -234,3 +244,108 @@ class CompilationViewSet(viewsets.ReadOnlyModelViewSet):
         if workspace is None:
             return Compilation.objects.none()
         return Compilation.objects.filter(resume__workspace=workspace)
+
+
+class ProposalViewSet(viewsets.GenericViewSet):
+    """List resumes' edit proposals; create/accept/reject via actions."""
+
+    permission_classes = [HasWorkspace]
+    serializer_class = ProposalSerializer
+
+    def get_queryset(self):
+        workspace = get_workspace(self.request)
+        if workspace is None:
+            return ResumeEditProposal.objects.none()
+        return ResumeEditProposal.objects.filter(resume__workspace=workspace)
+
+    @action(detail=False, methods=["post"])
+    def create_proposal(self, request):
+        """Rewrite a resume via the LLM and store the diff as a proposal."""
+        resume_id = request.data.get("resume")
+        prompt = (request.data.get("prompt") or "").strip()
+        if not resume_id or not prompt:
+            return Response(
+                {"detail": "Both 'resume' and 'prompt' are required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            resume = Resume.objects.get(
+                id=resume_id,
+                workspace__user=request.user,
+            )
+        except Resume.DoesNotExist:
+            return Response(
+                {"detail": "Resume not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        current = ResumeData.model_validate(resume.structured_data)
+        try:
+            new_data = rewrite_resume(current, prompt)
+        except ResumeParseError as exc:
+            return Response(
+                {"detail": str(exc)},
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+
+        changes = proposal_service.diff(
+            current.model_dump(),
+            new_data.model_dump(),
+        )
+        for ch in changes:
+            ch["id"] = proposal_service.new_id()
+            ch["status"] = "pending"
+
+        proposal = ResumeEditProposal.objects.create(
+            resume=resume,
+            prompt=prompt,
+            changes=changes,
+        )
+        return Response(
+            ProposalSerializer(proposal).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    def _get_proposal(self, pk):
+        workspace = get_workspace(self.request)
+        try:
+            return ResumeEditProposal.objects.get(
+                pk=pk,
+                resume__workspace=workspace,
+            )
+        except ResumeEditProposal.DoesNotExist:
+            return None
+
+    @action(detail=True, methods=["post"])
+    def accept(self, request, pk=None):
+        proposal = self._get_proposal(pk)
+        if proposal is None:
+            return Response(
+                {"detail": "Proposal not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        change_ids = request.data.get("change_ids") or []
+        if not isinstance(change_ids, list):
+            return Response(
+                {"detail": "'change_ids' must be a list."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        proposal_service.accept(proposal, [str(c) for c in change_ids])
+        return Response(ProposalSerializer(proposal).data)
+
+    @action(detail=True, methods=["post"])
+    def reject(self, request, pk=None):
+        proposal = self._get_proposal(pk)
+        if proposal is None:
+            return Response(
+                {"detail": "Proposal not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        change_ids = request.data.get("change_ids") or []
+        if not isinstance(change_ids, list):
+            return Response(
+                {"detail": "'change_ids' must be a list."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        proposal_service.reject(proposal, [str(c) for c in change_ids])
+        return Response(ProposalSerializer(proposal).data)

@@ -15,7 +15,10 @@ class Workspace(models.Model):
         related_name="workspaces",
     )
     anonymous_token_hash = models.CharField(
-        max_length=64, null=True, blank=True, unique=True,
+        max_length=64,
+        null=True,
+        blank=True,
+        unique=True,
     )
     expires_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -29,7 +32,9 @@ class Workspace(models.Model):
 class Resume(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     workspace = models.ForeignKey(
-        Workspace, on_delete=models.CASCADE, related_name="resumes",
+        Workspace,
+        on_delete=models.CASCADE,
+        related_name="resumes",
     )
     title = models.CharField(max_length=200)
     slug = models.SlugField(max_length=255, unique=True, blank=True)
@@ -59,6 +64,36 @@ class Resume(models.Model):
         return candidate
 
 
+class ResumeEditProposal(models.Model):
+    """A set of atomic changes proposed to a resume, awaiting accept/reject."""
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        APPLIED = "applied", "Applied"
+        DISCARDED = "discarded", "Discarded"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    resume = models.ForeignKey(
+        Resume,
+        on_delete=models.CASCADE,
+        related_name="proposals",
+    )
+    prompt = models.TextField(blank=True, default="")
+    changes = models.JSONField(default=list)
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"Proposal {self.id} [{self.status}]"
+
+
 class Compilation(models.Model):
     class Status(models.TextChoices):
         QUEUED = "queued", "Queued"
@@ -68,10 +103,14 @@ class Compilation(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     resume = models.ForeignKey(
-        Resume, on_delete=models.CASCADE, related_name="compilations",
+        Resume,
+        on_delete=models.CASCADE,
+        related_name="compilations",
     )
     status = models.CharField(
-        max_length=20, choices=Status.choices, default=Status.QUEUED,
+        max_length=20,
+        choices=Status.choices,
+        default=Status.QUEUED,
     )
     pdf = models.FileField(upload_to="resumes/pdfs/%Y/%m/", null=True, blank=True)
     log = models.TextField(blank=True, default="")

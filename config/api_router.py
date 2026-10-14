@@ -5,6 +5,7 @@ from rest_framework.routers import DefaultRouter
 from rest_framework.routers import SimpleRouter
 
 from betterleaf.resumes.views import CompilationViewSet
+from betterleaf.resumes.views import ProposalViewSet
 from betterleaf.resumes.views import ResumeViewSet
 from betterleaf.resumes.views import TemplateListView
 from betterleaf.users.api.views import UserViewSet
@@ -15,6 +16,7 @@ router = DefaultRouter() if settings.DEBUG else SimpleRouter()
 router.register("users", UserViewSet)
 router.register("resumes", ResumeViewSet, basename="resume")
 router.register("compilations", CompilationViewSet, basename="compilation")
+router.register("proposals", ProposalViewSet, basename="proposal")
 
 
 app_name = "api"

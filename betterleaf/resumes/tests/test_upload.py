@@ -51,7 +51,7 @@ def test_upload_pdf_creates_workspace_resume_and_cookie(db, sample_pdf_bytes):
                     "company": "Senda",
                     "duration": "2025",
                     "role": "Engineer",
-                    "bullets": ["did things"],
+                    "bullets": [{"text": "did things"}],
                 },
             ],
         },
