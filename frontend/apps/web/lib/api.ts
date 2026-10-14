@@ -125,11 +125,42 @@ export function googleLoginUrl(): string {
 
 /** Map a Django resume into an editor file, assigning resumeId. */
 export function resumeToFile(resume: ResumeDto): ProjectFile {
+  const title = resume.title?.trim() || "document.tex";
+  const name = title.endsWith(".tex") ? title : `${title}.tex`;
   return {
     id: `resume-${resume.id}`,
-    name: resume.title,
+    name,
     type: "tex",
     content: resume.main_tex,
     resumeId: resume.id,
   };
+}
+
+export interface UploadPdfResponse {
+  resume: ResumeDto;
+  created: boolean;
+}
+
+/** Upload a resume PDF; the backend attaches/creates the workspace + cookie,
+ * parses the PDF to LaTeX, and returns the resulting resume. */
+export async function uploadPdf(file: File): Promise<UploadPdfResponse> {
+  const method = "POST";
+  const headers: Record<string, string> = {};
+  const csrf = getCsrfToken();
+  if (csrf) headers["X-CSRFToken"] = csrf;
+
+  const form = new FormData();
+  form.append("file", file);
+
+  const res = await fetch(apiUrl("upload-pdf/"), {
+    credentials: "include",
+    method,
+    headers,
+    body: form,
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`API upload-pdf/ failed (${res.status}): ${text.slice(0, 200)}`);
+  }
+  return (await res.json()) as UploadPdfResponse;
 }
