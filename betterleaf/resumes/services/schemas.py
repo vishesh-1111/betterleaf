@@ -11,12 +11,17 @@ from pydantic import Field
 # Canonical set of section keys a resume may carry. NOT a rendering order; the
 # order sections appear in is dynamic and captured via ``section_order``.
 SECTION_KEYS = (
+    "summary",
     "education",
     "experience",
     "projects",
     "technical_skills",
     "achievements",
 )
+
+
+class Summary(BaseModel):
+    text: str = Field(description="A short summary paragraph of the resume")
 
 
 class ContactInfo(BaseModel):
@@ -69,6 +74,7 @@ class Achievement(BaseModel):
 class ResumeData(BaseModel):
     name: str
     contact: ContactInfo = Field(default_factory=ContactInfo)
+    summary: Summary | None = Field(default=None)
     experience: list[Experience] = Field(default_factory=list)
     technical_skills: list[TechnicalSkill] = Field(default_factory=list)
     education: list[Education] = Field(default_factory=list)

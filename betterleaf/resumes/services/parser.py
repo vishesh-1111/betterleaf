@@ -25,6 +25,8 @@ JSON object with exactly these top-level keys and no others:
 - "name": the person's full name (string).
 - "contact": an object with optional keys "phone", "email", "linkedin",
   "github", "portfolio". Only include keys that are present in the resume.
+- "summary": an object with a single key "text" (a short paragraph) OR null
+  when the resume has no summary section.
 - "experience": a list of objects, each with "company", "duration", "role"
   (all strings) and "bullets" (list of strings describing work).
 - "technical_skills": a list of objects, each with "key" (a category, e.g.

@@ -101,6 +101,11 @@ def _render_heading(data: ResumeData) -> str:
     )
 
 
+def _render_summary(value: dict | None) -> str:
+    text = (value or {}).get("text") or ""
+    return f"\\section{{Summary}}\n  {_escape(text)}"
+
+
 def _render_education(items: list) -> str:
     lines = [
         "\\section{Education}\n  \\resumeSubHeadingListStart"
@@ -211,6 +216,7 @@ def _render_achievements(items: list) -> str:
 
 
 _SECTION_RENDERERS = {
+    "summary": _render_summary,
     "education": _render_education,
     "experience": _render_experience,
     "projects": _render_projects,
