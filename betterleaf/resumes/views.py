@@ -4,6 +4,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework import viewsets
 from rest_framework.decorators import action
+from rest_framework.parsers import MultiPartParser
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -20,7 +21,101 @@ from betterleaf.resumes.serializers import CompilationSerializer
 from betterleaf.resumes.serializers import ResumeListSerializer
 from betterleaf.resumes.serializers import ResumeSerializer
 from betterleaf.resumes.serializers import TemplateSerializer
+from betterleaf.resumes.services.extract import pdf_to_text
+from betterleaf.resumes.services.latex import render_resume
+from betterleaf.resumes.services.parser import ResumeParseError
+from betterleaf.resumes.services.parser import extract_resume
 from betterleaf.resumes.tasks import compile_resume
+
+
+class UserStatusView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        # Force a csrftoken cookie onto the response so the SPA can echo it
+        # back as X-CSRFToken on subsequent unsafe API calls.
+        get_token(request)
+        user = getattr(request, "user", None)
+        authenticated = user is not None and user.is_authenticated
+        workspace = get_workspace(request)
+        return Response(
+            {
+                "authenticated": authenticated,
+                "has_workspace": workspace is not None,
+            },
+        )
+
+
+class UploadPdfView(APIView):
+    permission_classes = [AllowAny]
+    parser_classes = [MultiPartParser]
+
+    def post(self, request):
+        # Force a csrftoken cookie on the response so the SPA can echo it back
+        # as X-CSRFToken on subsequent unsafe API calls.
+        get_token(request)
+
+        upload = request.FILES.get("file")
+        if upload is None:
+            return Response(
+                {"detail": "Missing 'file' part in multipart upload."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            pdf_bytes = upload.read()
+        except OSError as exc:
+            return Response(
+                {"detail": f"Failed to read upload: {exc}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Parse before touching the workspace so a bad PDF can't leave an
+        # orphaned anonymous workspace behind.
+        try:
+            markdown = pdf_to_text(pdf_bytes)
+            data = extract_resume(markdown)
+            tex = render_resume(data)
+        except ValueError as exc:
+            return Response(
+                {"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST,
+            )
+        except ResumeParseError as exc:
+            return Response(
+                {"detail": str(exc)}, status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+
+        workspace = get_workspace(request)
+        created = workspace is None
+        raw = None
+        if workspace is None:
+            raw, token_hash = new_anonymous_token()
+            workspace = Workspace.objects.create(
+                anonymous_token_hash=token_hash,
+                expires_at=timezone.now() + ANONYMOUS_WORKSPACE_TTL,
+            )
+
+        title = upload.name.rsplit(".", 1)[0].strip() or "Resume"
+        resume = Resume.objects.create(
+            workspace=workspace,
+            title=title,
+            template="jakes",
+            main_tex=tex,
+            structured_data=data.model_dump(),
+        )
+
+        data_rsp = {"resume": ResumeSerializer(resume).data, "created": created}
+        if not created:
+            return Response(data_rsp)
+        response = Response(data_rsp, status=status.HTTP_201_CREATED)
+        response.set_cookie(
+            "bl_session",
+            raw,
+            max_age=int(ANONYMOUS_WORKSPACE_TTL.total_seconds()),
+            httponly=True,
+            samesite="Lax",
+        )
+        return response
 
 
 class WorkspaceView(APIView):

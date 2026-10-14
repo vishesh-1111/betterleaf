@@ -35,6 +35,7 @@ class Resume(models.Model):
     slug = models.SlugField(max_length=255, unique=True, blank=True)
     template = models.CharField(max_length=50)  # slug key into TEMPLATE_CATALOG
     main_tex = models.TextField(blank=True, default="")
+    structured_data = models.JSONField(blank=True, default=dict)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

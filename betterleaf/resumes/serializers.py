@@ -21,10 +21,17 @@ class ResumeSerializer(serializers.ModelSerializer):
             "slug",
             "template",
             "main_tex",
+            "structured_data",
             "updated_at",
             "latest_pdf_url",
         ]
-        read_only_fields = ["id", "slug", "updated_at", "latest_pdf_url"]
+        read_only_fields = [
+            "id",
+            "slug",
+            "updated_at",
+            "structured_data",
+            "latest_pdf_url",
+        ]
 
     def validate_template(self, value):
         if value not in TEMPLATE_CATALOG:
