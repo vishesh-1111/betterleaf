@@ -130,26 +130,35 @@ export function AIDrawer() {
         type="button"
         onClick={() => setIsOpen(true)}
         className={cn(
-          "pointer-events-auto absolute right-4 bottom-6 flex size-12 items-center justify-center rounded-full border border-border bg-background shadow-lg transition-all duration-300 ease-out hover:scale-105 hover:shadow-xl",
+          "pointer-events-auto absolute right-4 bottom-6 flex size-12 items-center justify-center rounded-full border shadow-lg transition-all duration-300 ease-out hover:scale-105 hover:shadow-xl",
           isOpen
             ? "pointer-events-none scale-50 opacity-0"
             : "scale-100 opacity-100",
         )}
+        style={{
+          background: "var(--spruce)",
+          borderColor: "var(--spruce)",
+          color: "var(--chalk)",
+        }}
         aria-label="Open AI Assistant"
       >
-        <MessageCircleIcon className="size-5 text-foreground" />
+        <MessageCircleIcon className="size-5" />
       </button>
 
       <ThreadPrimitive.Root
         ref={panelRef}
         className={cn(
-          "aui-root pointer-events-auto flex w-full max-w-2xl origin-bottom flex-col overflow-hidden rounded-3xl border border-border bg-background shadow-2xl transition-all duration-300 ease-out",
+          "aui-root pointer-events-auto flex w-full max-w-2xl origin-bottom flex-col overflow-hidden rounded-2xl border bg-background shadow-2xl transition-all duration-300 ease-out",
           isOpen
             ? "scale-100 opacity-100"
             : "pointer-events-none scale-95 opacity-0",
           isDragging && "!transition-none",
         )}
-        style={{ height: isOpen ? height : 0 }}
+        style={{
+          height: isOpen ? height : 0,
+          borderColor: "var(--spruce)",
+          borderWidth: "1.5px",
+        }}
         data-dragging={isDragging}
       >
         <div
@@ -161,8 +170,14 @@ export function AIDrawer() {
             }
           }}
         >
-          <div className="h-1 w-10 rounded-full bg-muted-foreground/30 transition-all group-hover:w-8" />
-          <ChevronDownIcon className="size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+          <div
+            className="h-1 w-10 rounded-full transition-all group-hover:w-8"
+            style={{ background: "var(--line)" }}
+          />
+          <ChevronDownIcon
+            className="size-4 opacity-0 transition-opacity group-hover:opacity-100"
+            style={{ color: "var(--muted)" }}
+          />
         </div>
 
         <ThreadMessages />
@@ -248,6 +263,10 @@ const ComposerAction: FC = () => {
             variant="default"
             size="icon"
             className="size-8 rounded-full"
+            style={{
+              background: "var(--sun)",
+              color: "var(--spruce)",
+            }}
             aria-label="Send message"
           >
             <ArrowUpIcon className="size-4" />
@@ -311,7 +330,8 @@ const CodeBlock: FC<SyntaxHighlighterProps> = ({ language, code }) => {
         <button
           type="button"
           onClick={handleInsert}
-          className="absolute top-1 right-1 flex items-center gap-0.5 rounded bg-primary px-1.5 py-0.5 text-primary-foreground text-xs opacity-0 transition-opacity group-hover:opacity-100"
+          className="absolute top-1 right-1 flex items-center gap-0.5 rounded px-1.5 py-0.5 text-xs opacity-0 transition-opacity group-hover:opacity-100"
+          style={{ background: "var(--leaf)", color: "#fff" }}
         >
           <PlusIcon className="size-3" />
           Insert
@@ -365,7 +385,10 @@ const UserMessage: FC = () => {
       className="flex w-full flex-col items-end py-1.5"
       data-role="user"
     >
-      <div className="max-w-[85%] rounded-xl bg-muted px-3 py-1.5 text-foreground text-sm">
+      <div
+        className="max-w-[85%] rounded-xl px-3 py-1.5 text-sm"
+        style={{ background: "var(--spruce)", color: "var(--chalk)" }}
+      >
         <MessagePrimitive.Parts />
       </div>
       <BranchPicker className="mr-1 justify-end" />

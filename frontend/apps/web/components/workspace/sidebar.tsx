@@ -10,14 +10,9 @@ import {
   Trash2Icon,
   PencilIcon,
   UploadIcon,
-  SunIcon,
-  MoonIcon,
-  MonitorIcon,
   ListIcon,
   HashIcon,
-  GithubIcon,
 } from "lucide-react";
-import { useTheme } from "next-themes";
 import { useDocumentStore, type ProjectFile } from "@/stores/document-store";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -80,12 +75,10 @@ export function Sidebar() {
   const addFile = useDocumentStore((s) => s.addFile);
   const deleteFile = useDocumentStore((s) => s.deleteFile);
   const renameFile = useDocumentStore((s) => s.renameFile);
-  const content =
-    files.find((f) => f.id === activeFileId)?.content ?? "";
+  const content = files.find((f) => f.id === activeFileId)?.content ?? "";
   const requestJumpToPosition = useDocumentStore(
     (s) => s.requestJumpToPosition,
   );
-  const { theme, setTheme } = useTheme();
 
   const [addDialogOpen, setAddDialogOpen] = useState(false);
 
@@ -198,26 +191,20 @@ export function Sidebar() {
   return (
     <div
       className={cn(
-        "flex h-full flex-col bg-sidebar text-sidebar-foreground",
+        "sidebar flex h-full flex-col",
         isDragging && "ring-2 ring-primary ring-inset",
       )}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      <div className="flex h-12 items-center border-sidebar-border border-b px-3">
+      <div className="sidebar-header">
         <div className="flex flex-col">
-          <span className="font-semibold text-sm">OpenPrism</span>
+          <span className="display" style={{ fontSize: "1.05rem" }}>
+            Your resume
+          </span>
           <span className="text-muted-foreground text-xs">
-            By{" "}
-            <a
-              href="https://www.assistant-ui.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline hover:text-foreground"
-            >
-              assistant-ui
-            </a>
+            {files.length} {files.length === 1 ? "file" : "files"}
           </span>
         </div>
       </div>
@@ -267,10 +254,8 @@ export function Sidebar() {
           <div
             key={file.id}
             className={cn(
-              "group flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors",
-              file.id === activeFileId
-                ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                : "hover:bg-sidebar-accent/50",
+              "file-row group",
+              file.id === activeFileId ? "active" : "hover:bg-muted/60",
             )}
           >
             <button
@@ -334,44 +319,7 @@ export function Sidebar() {
       </div>
 
       <div className="flex items-center justify-between border-sidebar-border border-t px-3 py-2 text-muted-foreground text-xs">
-        <span>OpenPrism v{packageJson.version}</span>
-        <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" className="size-6" asChild>
-            <a
-              href="https://github.com/assistant-ui/open-prism"
-              target="_blank"
-              rel="noopener noreferrer"
-              title="GitHub"
-            >
-              <GithubIcon className="size-3.5" />
-            </a>
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-6"
-            onClick={() => {
-              if (theme === "system") setTheme("light");
-              else if (theme === "light") setTheme("dark");
-              else setTheme("system");
-            }}
-            title={
-              theme === "system"
-                ? "System theme"
-                : theme === "light"
-                  ? "Light mode"
-                  : "Dark mode"
-            }
-          >
-            {theme === "system" ? (
-              <MonitorIcon className="size-3.5" />
-            ) : theme === "light" ? (
-              <SunIcon className="size-3.5" />
-            ) : (
-              <MoonIcon className="size-3.5" />
-            )}
-          </Button>
-        </div>
+        <span>Betterleaf v{packageJson.version}</span>
       </div>
 
       {/* Add File Dialog */}

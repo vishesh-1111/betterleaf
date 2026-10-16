@@ -16,8 +16,7 @@ import {
   historyKeymap,
   insertNewlineAndIndent,
 } from "@codemirror/commands";
-import { syntaxHighlighting } from "@codemirror/language";
-import { oneDark, oneDarkHighlightStyle } from "@codemirror/theme-one-dark";
+import { betterleafTheme } from "./workspace-editor-theme";
 import {
   search,
   highlightSelectionMatches,
@@ -414,49 +413,13 @@ export function LatexEditor() {
         history(),
         keymap.of([...defaultKeymap, ...historyKeymap]),
         latex(),
-        oneDark,
-        syntaxHighlighting(oneDarkHighlightStyle),
+        betterleafTheme,
         search(),
         highlightSelectionMatches(),
         updateListener,
         scrollListener,
         EditorView.lineWrapping,
         scrollPastEnd(),
-        EditorView.theme({
-          "&": {
-            height: "100%",
-            fontSize: "14px",
-          },
-          ".cm-scroller": {
-            overflow: "auto",
-          },
-          ".cm-gutters": {
-            paddingRight: "4px",
-          },
-          ".cm-lineNumbers .cm-gutterElement": {
-            paddingLeft: "8px",
-            paddingRight: "4px",
-          },
-          ".cm-content": {
-            paddingLeft: "8px",
-            paddingRight: "12px",
-          },
-          ".cm-searchMatch": {
-            backgroundColor: "#facc15 !important",
-            color: "#000 !important",
-            borderRadius: "2px",
-            boxShadow: "0 0 0 1px #eab308",
-          },
-          ".cm-searchMatch-selected": {
-            backgroundColor: "#f97316 !important",
-            color: "#fff !important",
-            borderRadius: "2px",
-            boxShadow: "0 0 0 2px #ea580c",
-          },
-          "&.cm-focused .cm-selectionBackground, .cm-selectionBackground": {
-            backgroundColor: "rgba(100, 150, 255, 0.3)",
-          },
-        }),
       ],
     });
 
@@ -545,7 +508,13 @@ export function LatexEditor() {
       )}
       <div className="relative min-h-0 flex-1 overflow-hidden">
         {stickyLines.length > 0 && (
-          <div className="absolute inset-x-0 top-0 z-10 border-border border-b bg-[#282c34] font-mono text-[14px] leading-[1.4] shadow-md">
+          <div
+            className="absolute inset-x-0 top-0 z-10 border-b font-mono text-[14px] leading-[1.4] shadow-md"
+            style={{
+              background: "var(--spruce)",
+              borderColor: "var(--line-dark)",
+            }}
+          >
             {stickyLines.map((section) => (
               <div
                 key={section.line}
@@ -564,8 +533,12 @@ export function LatexEditor() {
                 }}
               >
                 <span
-                  className="shrink-0 bg-[#282c34] py-px text-right text-[#636d83]"
-                  style={{ width: gutterWidth ? gutterWidth - 8 : 32 }}
+                  className="shrink-0 py-px text-right"
+                  style={{
+                    width: gutterWidth ? gutterWidth - 8 : 32,
+                    color: "#5e8573",
+                    background: "var(--spruce)",
+                  }}
                 >
                   {section.line}
                 </span>
@@ -575,7 +548,7 @@ export function LatexEditor() {
                     dangerouslySetInnerHTML={{ __html: section.html }}
                   />
                 ) : (
-                  <span className="py-px pl-5.5 text-[#abb2bf]">
+                  <span className="py-px pl-5.5" style={{ color: "#d9e6de" }}>
                     {section.content}
                   </span>
                 )}

@@ -14,7 +14,9 @@ import { useDocumentStore } from "@/stores/document-store";
 export function RootProvider({ children }: { children: ReactNode }) {
   const runtime = useChatRuntime({
     transport: new AssistantChatTransport({
-      api: process.env.NEXT_PUBLIC_CHAT_API_URL ?? `${process.env.NEXT_PUBLIC_API_URL}/api/chat/`,
+      api:
+        process.env.NEXT_PUBLIC_CHAT_API_URL ??
+        `${process.env.NEXT_PUBLIC_API_URL}/api/chat/`,
       credentials: "include",
       headers: () => {
         const match = document.cookie
@@ -40,7 +42,7 @@ export function RootProvider({ children }: { children: ReactNode }) {
   useKeyboardShortcuts();
 
   return (
-    <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
+    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
       <AssistantRuntimeProvider runtime={runtime}>
         {children}
         <Toaster />

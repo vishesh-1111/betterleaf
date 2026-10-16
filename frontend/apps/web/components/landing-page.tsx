@@ -171,6 +171,7 @@ export function LandingPage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
+  const [uploading, setUploading] = useState(false);
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -179,19 +180,22 @@ export function LandingPage() {
   }, []);
 
   const openPicker = useCallback(() => {
+    if (uploading) return;
     inputRef.current?.click();
-  }, []);
+  }, [uploading]);
 
   const onFileChange = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       e.target.value = "";
       if (!file) return;
+      setUploading(true);
       try {
         await uploadPdf(file);
         router.replace("/workspace");
       } catch {
         showToast("Upload failed. Please try again.");
+        setUploading(false);
       }
     },
     [router, showToast],
@@ -201,6 +205,9 @@ export function LandingPage() {
 
   return (
     <div className="bl">
+      <div className={`progress${uploading ? " active" : ""}`} role="progressbar" aria-hidden={!uploading} aria-label="Uploading your resume">
+        <span className="progress-bar" />
+      </div>
       <header className="top">
         <div className="wrap nav">
           <a href="#top" className="logo" aria-label="Betterleaf home">

@@ -273,12 +273,24 @@ export function PdfPreview() {
   const renderContent = () => {
     if (compileError) {
       return (
-        <div className="flex flex-1 flex-col items-center justify-center bg-muted/30 p-8">
-          <AlertCircleIcon className="mb-4 size-12 text-destructive" />
-          <h2 className="mb-2 font-medium text-destructive text-lg">
-            Compilation Error
+        <div
+          className="flex flex-1 flex-col items-center justify-center p-8"
+          style={{ background: "var(--surface)" }}
+        >
+          <AlertCircleIcon
+            className="mb-4 size-12"
+            style={{ color: "var(--leaf)" }}
+          />
+          <h2
+            className="display mb-2 text-lg"
+            style={{ color: "var(--muted)" }}
+          >
+            Compilation error
           </h2>
-          <p className="max-w-md text-center text-muted-foreground text-sm">
+          <p
+            className="max-w-md text-center text-sm"
+            style={{ color: "var(--muted)" }}
+          >
             {compileError}
           </p>
         </div>
@@ -287,13 +299,23 @@ export function PdfPreview() {
 
     if (!pdfData) {
       return (
-        <div className="flex flex-1 flex-col items-center justify-center bg-muted/30 p-8">
-          <FileTextIcon className="mb-4 size-16 text-muted-foreground/50" />
-          <h2 className="mb-2 font-medium text-lg text-muted-foreground">
-            PDF Preview
+        <div
+          className="flex flex-1 flex-col items-center justify-center p-8"
+          style={{ background: "var(--surface)" }}
+        >
+          <FileTextIcon
+            className="mb-4 size-16"
+            style={{ color: "var(--muted-2)" }}
+          />
+          <h2
+            className="display mb-2 text-lg"
+            style={{ color: "var(--muted)" }}
+          >
+            Your PDF appears here
           </h2>
-          <p className="text-center text-muted-foreground text-sm">
-            Click &quot;Compile&quot; to preview your document
+          <p className="text-center text-sm" style={{ color: "var(--muted)" }}>
+            Edit the LaTeX on the left — or ask the AI — and the preview updates
+            as you type.
           </p>
         </div>
       );
@@ -301,12 +323,24 @@ export function PdfPreview() {
 
     if (pdfError) {
       return (
-        <div className="flex flex-1 flex-col items-center justify-center bg-muted/30 p-8">
-          <AlertCircleIcon className="mb-4 size-12 text-destructive" />
-          <h2 className="mb-2 font-medium text-destructive text-lg">
-            PDF Load Error
+        <div
+          className="flex flex-1 flex-col items-center justify-center p-8"
+          style={{ background: "var(--surface)" }}
+        >
+          <AlertCircleIcon
+            className="mb-4 size-12"
+            style={{ color: "var(--leaf)" }}
+          />
+          <h2
+            className="display mb-2 text-lg"
+            style={{ color: "var(--muted)" }}
+          >
+            Couldn&apos;t load your PDF
           </h2>
-          <p className="max-w-md text-center text-muted-foreground text-sm">
+          <p
+            className="max-w-md text-center text-sm"
+            style={{ color: "var(--muted)" }}
+          >
             {pdfError}
           </p>
         </div>
@@ -326,26 +360,45 @@ export function PdfPreview() {
   };
 
   return (
-    <div className="flex h-full flex-col bg-muted/50">
-      <div className="flex h-9 items-center justify-between border-border border-b bg-background px-2">
+    <div
+      className="flex h-full flex-col"
+      style={{ background: "var(--surface)" }}
+    >
+      <div
+        className="flex h-9 items-center justify-between border-b px-2"
+        style={{ background: "var(--surface)", borderColor: "var(--ink)" }}
+      >
         <div className="flex items-center gap-1.5">
           {isSaving && (
             <>
-              <LoaderIcon className="size-3.5 animate-spin text-muted-foreground" />
-              <span className="text-muted-foreground text-xs">Saving...</span>
+              <LoaderIcon
+                className="size-3.5 animate-spin"
+                style={{ color: "var(--muted)" }}
+              />
+              <span className="text-xs" style={{ color: "var(--muted)" }}>
+                Saving...
+              </span>
             </>
           )}
           {!isSaving && isCompiling && (
             <>
-              <LoaderIcon className="size-3.5 animate-spin text-muted-foreground" />
-              <span className="text-muted-foreground text-xs">
+              <LoaderIcon
+                className="size-3.5 animate-spin"
+                style={{ color: "var(--muted)" }}
+              />
+              <span className="text-xs" style={{ color: "var(--muted)" }}>
                 Compiling...
               </span>
             </>
           )}
           {!isSaving && !isCompiling && pdfData && (
             <>
-              <span className="text-muted-foreground text-xs">Ready</span>
+              <span
+                className="text-xs"
+                style={{ color: "var(--leaf)", fontWeight: 600 }}
+              >
+                Ready
+              </span>
               <Button
                 variant="ghost"
                 size="icon"
@@ -358,7 +411,9 @@ export function PdfPreview() {
           )}
           {!isSaving && !isCompiling && compileError && (
             <>
-              <span className="text-destructive text-xs">Error</span>
+              <span className="text-xs" style={{ color: "var(--leaf)" }}>
+                Error
+              </span>
               <Button
                 variant="ghost"
                 size="icon"
@@ -373,7 +428,7 @@ export function PdfPreview() {
 
         {pdfData && (
           <div className="flex items-center gap-0.5">
-            <span className="mr-2 text-muted-foreground text-xs">
+            <span className="mr-2 text-xs" style={{ color: "var(--muted)" }}>
               {numPages} {numPages === 1 ? "page" : "pages"}
             </span>
             <Button

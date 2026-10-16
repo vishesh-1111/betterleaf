@@ -1,0 +1,234 @@
+/* ------------------------------------------------------------------ *
+ * Betterleaf workspace — self-contained, namespaced under .bl-ws to
+ * avoid colliding with the app's Tailwind design tokens. Shares the
+ * landing page's identity: spruce ink, leaf accent, chalk page, sun
+ * reserved for AI-changed content.
+ *
+ * Semantic tokens so the workspace honours the app theme:
+ *   --ink      text + secondary borders (flips light in dark mode)
+ *   --surface  page chrome background (chalk light / deep spruce dark)
+ *   --panel    paper surface (white light / dark sheet dark)
+ *   --spruce   the fixed deep ink (editor, top bar) — never flips
+ * ------------------------------------------------------------------ */
+
+.bl-ws {
+  --spruce: #10281f; /* fixed deep ink */
+  --spruce-deep: #16362b; /* darker panel shade */
+  --leaf: #2e7d5b; /* secondary accent */
+  --leaf-bright: #7fd1a6; /* accent on dark */
+  --chalk: #f2f4f0; /* page (light) */
+  --paper: #ffffff;
+  --sun: #f2c14e; /* highlight: only for what the AI changed */
+  --muted: #4e6158;
+  --muted-2: #7fa896; /* muted on dark */
+  --line: #d3dad2;
+  --line-dark: #35574a; /* separators on dark */
+
+  /* semantic, theme-sensitive */
+  --ink: #10281f;
+  --surface: #f2f4f0;
+  --panel: #ffffff;
+
+  --display: var(--font-display, "Bricolage Grotesque"),
+    "Helvetica Neue", Arial, sans-serif;
+  --body: var(--font-body, "Instrument Sans"), "Helvetica Neue", Arial,
+    sans-serif;
+  --code: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas,
+    monospace;
+}
+
+/* Dark default: flip the chrome surfaces and ink, keep spruce/leaf/sun. */
+.dark .bl-ws {
+  --ink: #d9e6de;
+  --surface: #0c1b15; /* deep spruce page */
+  --panel: #12271f; /* dark sheet */
+  --line: #2b4f40;
+  --muted: #9db9ab;
+}
+
+.bl-ws {
+  height: 100%;
+  min-height: 0;
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+.bl-ws *,
+.bl-ws *::before,
+.bl-ws *::after {
+  box-sizing: border-box;
+}
+.bl-ws :focus-visible {
+  outline: 2px solid var(--leaf);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* Type scale: display only for headings/wordmark */
+.bl-ws .display {
+  font-family: var(--display);
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: 1.05;
+}
+
+/* ------------------------------------------------------------------ *
+ * Top workspace bar — always deep spruce
+ * ------------------------------------------------------------------ */
+.bl-ws .ws-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 56px;
+  padding: 0 20px;
+  background: var(--spruce);
+  color: var(--chalk);
+}
+.bl-ws .ws-brand {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 2px;
+  font: 800 1.35rem/1 var(--display);
+  letter-spacing: -0.035em;
+  color: var(--chalk);
+  text-decoration: none;
+}
+.bl-ws .ws-leaf {
+  display: inline-block;
+  height: 1.05em;
+  width: auto;
+  margin-left: 0.02em;
+  vertical-align: -0.115em;
+  color: var(--chalk);
+  overflow: visible;
+}
+.bl-ws .ws-sub {
+  font-size: 0.82rem;
+  color: var(--muted-2);
+  margin-left: 10px;
+}
+
+/* Buttons: pill, spruce border, leaf hover (matches landing .btn) */
+.bl-ws .btn-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font: 600 0.9rem/1 var(--body);
+  padding: 9px 16px;
+  border-radius: 999px;
+  border: 1.5px solid var(--chalk);
+  background: var(--spruce);
+  color: var(--chalk);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  text-decoration: none;
+}
+.bl-ws .btn-pill:hover {
+  background: var(--leaf);
+  border-color: var(--leaf);
+  color: #fff;
+}
+
+/* Resize handle */
+.bl-ws .resize-handle {
+  width: 6px;
+  background: var(--line);
+  transition: background 0.15s;
+}
+.bl-ws .resize-handle:hover,
+.bl-ws .resize-handle[data-resize-handle-active] {
+  background: var(--leaf);
+}
+
+/* ------------------------------------------------------------------ *
+ * Sidebar
+ * ------------------------------------------------------------------ */
+.bl-ws .sidebar {
+  background: var(--panel);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.bl-ws .sidebar-header {
+  padding: 12px 14px;
+  border-bottom: 1.5px solid var(--ink);
+  background: var(--surface);
+}
+.bl-ws .search-bar {
+  border-bottom: 1.5px solid var(--ink);
+}
+.bl-ws .file-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 8px;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  color: var(--ink);
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+.bl-ws .file-row:hover {
+  background: var(--surface);
+}
+.bl-ws .file-row.active {
+  background: var(--spruce);
+  color: var(--chalk);
+}
+.dark .bl-ws .file-row.active {
+  background: var(--leaf);
+  color: #fff;
+}
+.bl-ws .file-row .fname {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
+/* ------------------------------------------------------------------ *
+ * Preview surface: a "sheet of paper" on chalk
+ * ------------------------------------------------------------------ */
+.bl-ws .preview-scroll {
+  background: var(--surface);
+}
+.bl-ws .preview-sheet {
+  background: var(--paper);
+  border: 1.5px solid var(--ink);
+  box-shadow: 8px 8px 0 var(--leaf);
+}
+.bl-ws .empty-state {
+  color: var(--muted);
+}
+
+/* ------------------------------------------------------------------ *
+ * Motion: a single settle on load, none on scroll
+ * ------------------------------------------------------------------ */
+@keyframes bl-ws-settle {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.bl-ws .settle {
+  animation: bl-ws-settle 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) 0.1s both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bl-ws *,
+  .bl-ws *::before,
+  .bl-ws *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

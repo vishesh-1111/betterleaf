@@ -1,23 +1,24 @@
 import type { Metadata } from "next";
 import Script from "next/script";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Bricolage_Grotesque, Instrument_Sans } from "next/font/google";
 import "@/styles/globals.css";
 import { RootProvider } from "./provider";
 import { cn } from "@/lib/utils";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const display = Bricolage_Grotesque({
+  variable: "--font-display",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const body = Instrument_Sans({
+  variable: "--font-body",
   subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
-  title: "Open-Prism | LaTeX Writing Workspace",
-  description: "AI-powered LaTeX writing workspace inspired by OpenAI Prism",
+  title: "Betterleaf | LaTeX Resume Workspace",
+  description:
+    "A LaTeX resume workspace with AI that understands LaTeX. Edit, preview and download a clean one-page PDF.",
 };
 
 export default function RootLayout({
@@ -38,8 +39,9 @@ export default function RootLayout({
       </head>
       <body
         className={cn(
-          geistSans.className,
-          geistMono.variable,
+          body.className,
+          body.variable,
+          display.variable,
           "h-full antialiased",
         )}
       >

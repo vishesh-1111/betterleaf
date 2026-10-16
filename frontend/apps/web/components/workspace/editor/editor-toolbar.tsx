@@ -85,10 +85,16 @@ export function EditorToolbar({
 
   if (fileType === "image") {
     return (
-      <div className="flex h-9 items-center justify-between border-border border-b bg-muted/30 px-2">
+      <div
+        className="flex h-9 items-center justify-between border-b px-2"
+        style={{ background: "var(--surface)", borderColor: "var(--ink)" }}
+      >
         <div className="flex items-center gap-1">
-          <ImageIcon className="size-4 text-muted-foreground" />
-          <span className="font-medium text-muted-foreground text-sm">
+          <ImageIcon className="size-4" style={{ color: "var(--muted)" }} />
+          <span
+            className="font-medium text-sm"
+            style={{ color: "var(--ink)", fontFamily: "var(--code)" }}
+          >
             {fileName}
           </span>
         </div>
@@ -132,12 +138,18 @@ export function EditorToolbar({
   }
 
   return (
-    <div className="flex h-9 items-center gap-1 border-border border-b bg-muted/30 px-2">
-      <FileTextIcon className="size-4 text-muted-foreground" />
-      <span className="mr-2 font-medium text-muted-foreground text-sm">
+    <div
+      className="flex h-9 items-center gap-1 border-b px-2"
+      style={{ background: "var(--surface)", borderColor: "var(--ink)" }}
+    >
+      <FileTextIcon className="size-4" style={{ color: "var(--muted)" }} />
+      <span
+        className="mr-2 font-medium text-sm"
+        style={{ color: "var(--ink)", fontFamily: "var(--code)" }}
+      >
         {fileName}
       </span>
-      <div className="mx-2 h-4 w-px bg-border" />
+      <div className="mx-2 h-4 w-px" style={{ background: "var(--line)" }} />
       <TooltipIconButton
         tooltip="Bold (\\textbf)"
         onClick={() => insertText("\\textbf{", "}")}
