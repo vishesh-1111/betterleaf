@@ -22,5 +22,4 @@ urlpatterns = [
     path("users/auth-status/", auth_status, name="auth-status"),
     *router.urls,
     path("templates/", TemplateListView.as_view(), name="template-list"),
-    path("chat/", include("betterleaf.chat.urls")),
 ]
