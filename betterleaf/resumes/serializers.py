@@ -1,8 +1,31 @@
 from rest_framework import serializers
 
 from betterleaf.resumes.catalog import TEMPLATE_CATALOG
-from betterleaf.resumes.models import Compilation, MasterResume
+from betterleaf.resumes.models import Compilation
+from betterleaf.resumes.models import MasterResume
 from betterleaf.resumes.models import Resume
+
+
+MAX_PDF_UPLOAD_BYTES = 10 * 1024 * 1024
+PDF_MAGIC = b"%PDF"
+
+
+class PdfUploadSerializer(serializers.Serializer):
+    file = serializers.FileField()
+
+    def validate_file(self, upload):
+        if not upload.name.lower().endswith(".pdf"):
+            message = "Only PDF files are supported."
+            raise serializers.ValidationError(message)
+        if upload.size > MAX_PDF_UPLOAD_BYTES:
+            limit_mb = MAX_PDF_UPLOAD_BYTES // (1024 * 1024)
+            message = f"File too large (max {limit_mb} MB)."
+            raise serializers.ValidationError(message)
+        if upload.read(len(PDF_MAGIC)) != PDF_MAGIC:
+            message = "File is not a valid PDF."
+            raise serializers.ValidationError(message)
+        upload.seek(0)
+        return upload
 
 
 class TemplateSerializer(serializers.Serializer):

@@ -1,7 +1,7 @@
 import base64
+
 from django.http import FileResponse
 from django.middleware.csrf import get_token
-from django.utils import timezone
 from rest_framework import status
 from rest_framework import viewsets
 from rest_framework.decorators import action
@@ -10,133 +10,101 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from betterleaf.resumes.auth import ANONYMOUS_WORKSPACE_TTL
+from betterleaf.resumes.auth import get_or_create_workspace
 from betterleaf.resumes.auth import get_workspace
-from betterleaf.resumes.auth import new_anonymous_token
+from betterleaf.resumes.auth import set_workspace_cookie
 from betterleaf.resumes.catalog import TEMPLATE_CATALOG
-from betterleaf.resumes.models import Compilation, MasterResume
+from betterleaf.resumes.models import Compilation
 from betterleaf.resumes.models import Resume
 from betterleaf.resumes.models import Workspace
 from betterleaf.resumes.permissions import HasWorkspace
 from betterleaf.resumes.serializers import CompilationSerializer
+from betterleaf.resumes.serializers import PdfUploadSerializer
 from betterleaf.resumes.serializers import ResumeListSerializer
 from betterleaf.resumes.serializers import ResumeSerializer
 from betterleaf.resumes.serializers import TemplateSerializer
-from betterleaf.resumes.services.extract import pdf_to_text
-from betterleaf.resumes.services.latex import render_resume
-from betterleaf.resumes.services.parser import ResumeParseError
-from betterleaf.resumes.services.parser import extract_resume
-from betterleaf.resumes.tasks import compile_resume, parse_and_create_master
+from betterleaf.resumes.tasks import compile_resume
+from betterleaf.resumes.tasks import parse_and_create_master
 
 
-class UserStatusView(APIView):
+class WorkspaceAPIView(APIView):
+    """Base for the SPA's session-bootstrap endpoints (reachable by guests).
+
+    * Forces a csrftoken cookie onto the response so the SPA can echo it back
+      as X-CSRFToken on subsequent unsafe API calls.
+    * ``get_or_create_workspace()`` resolves the caller's workspace (signed-in
+      user's, else the guest's), minting a guest workspace if there is none.
+      When it does, the ``bl_session`` cookie is set on the response.
+    """
+
     permission_classes = [AllowAny]
+    new_guest_token: str | None = None
 
-    def get(self, request):
-        # Force a csrftoken cookie onto the response so the SPA can echo it
-        # back as X-CSRFToken on subsequent unsafe API calls.
+    def initial(self, request, *args, **kwargs):
         get_token(request)
+        super().initial(request, *args, **kwargs)
+
+    def get_or_create_workspace(self) -> Workspace:
+        workspace, self.new_guest_token = get_or_create_workspace(self.request)
+        return workspace
+
+    def finalize_response(self, request, response, *args, **kwargs):
+        response = super().finalize_response(request, response, *args, **kwargs)
+        if self.new_guest_token is not None:
+            set_workspace_cookie(response, self.new_guest_token)
+        return response
+
+
+class UserStatusView(WorkspaceAPIView):
+    def get(self, request):
         user = getattr(request, "user", None)
-        authenticated = user is not None and user.is_authenticated
-        workspace = get_workspace(request)
         return Response(
             {
-                "authenticated": authenticated,
-                "has_workspace": workspace is not None,
+                "authenticated": user is not None and user.is_authenticated,
+                "has_workspace": get_workspace(request) is not None,
             },
         )
 
 
-class UploadPdfView(APIView):
-    permission_classes = [AllowAny]
+class UploadPdfView(WorkspaceAPIView):
     parser_classes = [MultiPartParser]
 
     def post(self, request):
-        # Force a csrftoken cookie on the response so the SPA can echo it back
-        # as X-CSRFToken on subsequent unsafe API calls.
-        get_token(request)
+        # Validate before resolving the workspace so a bad upload never
+        # creates a guest workspace.
+        serializer = PdfUploadSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        upload = serializer.validated_data["file"]
 
-        upload = request.FILES.get("file")
-        if upload is None:
-            return Response(
-                {"detail": "Missing 'file' part in multipart upload."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        try:
-            pdf_bytes = upload.read()
-        except OSError as exc:
-            return Response(
-                {"detail": f"Failed to read upload: {exc}"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        workspace = get_workspace(request)
-        created = workspace is None
-        raw = None
-        if workspace is None:
-            raw, token_hash = new_anonymous_token()
-            workspace = Workspace.objects.create(
-                anonymous_token_hash=token_hash,
-                expires_at=timezone.now() + ANONYMOUS_WORKSPACE_TTL,
-            )
-
-        filename = upload.name
-        file_b64 = base64.b64encode(pdf_bytes).decode("utf-8")
+        workspace = self.get_or_create_workspace()
         task = parse_and_create_master.delay(
             workspace_id=str(workspace.id),
-            file_b64=file_b64,
-            filename=filename,
+            file_b64=base64.b64encode(upload.read()).decode("utf-8"),
+            filename=upload.name,
         )
 
-        data_rsp = {"task_id": task.id, "status": "queued", "created": created}
-        if not created:
-            return Response(data_rsp)
-        response = Response(data_rsp, status=status.HTTP_201_CREATED)
-        response.set_cookie(
-            "bl_session",
-            raw,
-            max_age=int(ANONYMOUS_WORKSPACE_TTL.total_seconds()),
-            httponly=True,
-            samesite="Lax",
+        created = self.new_guest_token is not None
+        return Response(
+            {"task_id": task.id, "status": "queued", "created": created},
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
         )
-        return response
 
 
-class WorkspaceView(APIView):
-    permission_classes = [AllowAny]
+class WorkspaceView(WorkspaceAPIView):
+    permission_classes = [HasWorkspace]
 
     def get(self, request):
-        # Force a csrftoken cookie onto the response so the SPA can echo it
-        # back as X-CSRFToken on subsequent unsafe API calls.
-        get_token(request)
         workspace = get_workspace(request)
-        created = workspace is None
-        if workspace is None:
-            raw, token_hash = new_anonymous_token()
-            workspace = Workspace.objects.create(
-                anonymous_token_hash=token_hash,
-                expires_at=timezone.now() + ANONYMOUS_WORKSPACE_TTL,
-            )
         resumes = ResumeListSerializer(
             Resume.objects.filter(workspace=workspace), many=True,
         ).data
-        data = {
-            "workspace_id": str(workspace.id),
-            "anonymous": workspace.user_id is None,
-            "resumes": resumes,
-        }
-        if not created:
-            return Response(data)
-        response = Response(data, status=status.HTTP_201_CREATED)
-        response.set_cookie(
-            "bl_session",
-            raw,
-            max_age=int(ANONYMOUS_WORKSPACE_TTL.total_seconds()),
-            httponly=True,
-            samesite="Lax",
+        return Response(
+            {
+                "workspace_id": str(workspace.id),
+                "anonymous": workspace.user_id is None,
+                "resumes": resumes,
+            },
         )
-        return response
 
 
 class TemplateListView(APIView):

@@ -6,6 +6,8 @@ from allauth.account.adapter import DefaultAccountAdapter
 from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
 from django.conf import settings
 
+from betterleaf.resumes.auth import delete_workspace_cookie
+
 if typing.TYPE_CHECKING:
     from allauth.socialaccount.models import SocialAccount
     from allauth.socialaccount.models import SocialLogin
@@ -42,7 +44,7 @@ class AccountAdapter(DefaultAccountAdapter):
             signup=signup,
             redirect_url=redirect_url,
         )
-        response.delete_cookie("bl_session")
+        delete_workspace_cookie(response)
         return response
 
     def get_login_redirect_url(self, request: HttpRequest) -> str:

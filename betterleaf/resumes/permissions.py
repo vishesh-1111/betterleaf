@@ -4,7 +4,7 @@ from betterleaf.resumes.auth import get_workspace
 
 
 class HasWorkspace(BasePermission):
-    message = "No active workspace; create one via GET /api/workspace/."
+    message = "No active workspace; upload a resume to get started."
 
     def has_permission(self, request, view):
         return get_workspace(request) is not None

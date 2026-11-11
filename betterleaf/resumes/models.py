@@ -7,12 +7,12 @@ from slugify import slugify
 
 class Workspace(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.ForeignKey(
+    user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
         null=True,
         blank=True,
         on_delete=models.CASCADE,
-        related_name="workspaces",
+        related_name="workspace",
     )
     anonymous_token_hash = models.CharField(
         max_length=64, null=True, blank=True, unique=True,
