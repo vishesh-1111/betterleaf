@@ -1,13 +1,30 @@
 from rest_framework import serializers
 
 from betterleaf.resumes.catalog import TEMPLATE_CATALOG
-from betterleaf.resumes.models import Compilation
+from betterleaf.resumes.models import Compilation, MasterResume
 from betterleaf.resumes.models import Resume
 
 
 class TemplateSerializer(serializers.Serializer):
     slug = serializers.CharField()
     name = serializers.CharField()
+
+
+class MasterResumeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MasterResume
+        fields = [
+            "id",
+            "title",
+            "structured_data",
+            "parsed_from_file",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "structured_data",
+            "updated_at",
+        ]
 
 
 class ResumeSerializer(serializers.ModelSerializer):

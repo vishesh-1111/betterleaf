@@ -3,9 +3,11 @@ from django.core.files.base import ContentFile
 from django.utils import timezone
 
 from betterleaf.resumes.catalog import TEMPLATE_CATALOG
-from betterleaf.resumes.models import Compilation
+from betterleaf.resumes.models import Compilation, MasterResume, Resume
 from betterleaf.resumes.services.compiler import LatexCompileError
 from betterleaf.resumes.services.compiler import compile_latex
+from betterleaf.resumes.services.parsing import parse_resume_upload
+from betterleaf.resumes.services.latex import render_resume
 
 
 @shared_task
@@ -54,3 +56,45 @@ def compile_resume(compilation_id: str) -> None:
     compilation.log = log
     compilation.finished_at = timezone.now()
     compilation.save()
+
+
+@shared_task(bind=True)
+def parse_and_create_master(self, workspace_id: str, file_b64: str, filename: str) -> str:
+    """
+    Extract resume from PDF and create MasterResume and Resume.
+
+    Args:
+        workspace_id: UUID of workspace
+        file_b64: PDF content as base64-encoded string
+        filename: Original filename
+
+    Returns:
+        MasterResume.id
+    """
+    import base64
+    try:
+        file_bytes = base64.b64decode(file_b64)
+        structured_data = parse_resume_upload(file_bytes, filename)
+
+        master = MasterResume.objects.create(
+            workspace_id=workspace_id,
+            title=filename.replace(".pdf", ""),
+            structured_data=structured_data,
+            parsed_from_file=filename,
+        )
+
+        main_tex = render_resume(structured_data)
+
+        Resume.objects.create(
+            workspace_id=workspace_id,
+            master_resume=master,
+            title=master.title,
+            template="jakes",
+            main_tex=main_tex,
+            structured_data=structured_data,
+        )
+
+        return str(master.id)
+
+    except Exception as e:
+        self.retry(exc=e, countdown=5, max_retries=3)

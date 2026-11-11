@@ -1,3 +1,4 @@
+import base64
 from django.http import FileResponse
 from django.middleware.csrf import get_token
 from django.utils import timezone
@@ -13,7 +14,7 @@ from betterleaf.resumes.auth import ANONYMOUS_WORKSPACE_TTL
 from betterleaf.resumes.auth import get_workspace
 from betterleaf.resumes.auth import new_anonymous_token
 from betterleaf.resumes.catalog import TEMPLATE_CATALOG
-from betterleaf.resumes.models import Compilation
+from betterleaf.resumes.models import Compilation, MasterResume
 from betterleaf.resumes.models import Resume
 from betterleaf.resumes.models import Workspace
 from betterleaf.resumes.permissions import HasWorkspace
@@ -25,7 +26,7 @@ from betterleaf.resumes.services.extract import pdf_to_text
 from betterleaf.resumes.services.latex import render_resume
 from betterleaf.resumes.services.parser import ResumeParseError
 from betterleaf.resumes.services.parser import extract_resume
-from betterleaf.resumes.tasks import compile_resume
+from betterleaf.resumes.tasks import compile_resume, parse_and_create_master
 
 
 class UserStatusView(APIView):
@@ -70,21 +71,6 @@ class UploadPdfView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Parse before touching the workspace so a bad PDF can't leave an
-        # orphaned anonymous workspace behind.
-        try:
-            markdown = pdf_to_text(pdf_bytes)
-            data = extract_resume(markdown)
-            tex = render_resume(data)
-        except ValueError as exc:
-            return Response(
-                {"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST,
-            )
-        except ResumeParseError as exc:
-            return Response(
-                {"detail": str(exc)}, status=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            )
-
         workspace = get_workspace(request)
         created = workspace is None
         raw = None
@@ -95,16 +81,15 @@ class UploadPdfView(APIView):
                 expires_at=timezone.now() + ANONYMOUS_WORKSPACE_TTL,
             )
 
-        title = upload.name.rsplit(".", 1)[0].strip() or "Resume"
-        resume = Resume.objects.create(
-            workspace=workspace,
-            title=title,
-            template="jakes",
-            main_tex=tex,
-            structured_data=data.model_dump(),
+        filename = upload.name
+        file_b64 = base64.b64encode(pdf_bytes).decode("utf-8")
+        task = parse_and_create_master.delay(
+            workspace_id=str(workspace.id),
+            file_b64=file_b64,
+            filename=filename,
         )
 
-        data_rsp = {"resume": ResumeSerializer(resume).data, "created": created}
+        data_rsp = {"task_id": task.id, "status": "queued", "created": created}
         if not created:
             return Response(data_rsp)
         response = Response(data_rsp, status=status.HTTP_201_CREATED)

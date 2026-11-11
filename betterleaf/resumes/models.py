@@ -26,10 +26,28 @@ class Workspace(models.Model):
         return f"Anonymous workspace {self.id}"
 
 
+class MasterResume(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    workspace = models.ForeignKey(
+        Workspace, on_delete=models.CASCADE, related_name="master_resumes",
+    )
+    title = models.CharField(max_length=200)
+    structured_data = models.JSONField(blank=True, default=dict)
+    parsed_from_file = models.CharField(max_length=255, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self) -> str:
+        return self.title
+
+
 class Resume(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     workspace = models.ForeignKey(
         Workspace, on_delete=models.CASCADE, related_name="resumes",
+    )
+    master_resume = models.ForeignKey(
+        MasterResume, on_delete=models.CASCADE, related_name="resumes", null=True, blank=True,
     )
     title = models.CharField(max_length=200)
     slug = models.SlugField(max_length=255, unique=True, blank=True)
