@@ -1,6 +1,7 @@
 import base64
 
 from celery.result import AsyncResult
+from django.core.exceptions import ObjectDoesNotExist
 from django.http import FileResponse
 from django.middleware.csrf import get_token
 from rest_framework import status
@@ -17,7 +18,6 @@ from betterleaf.resumes.auth import get_workspace
 from betterleaf.resumes.auth import set_workspace_cookie
 from betterleaf.resumes.catalog import TEMPLATE_CATALOG
 from betterleaf.resumes.models import Compilation
-from betterleaf.resumes.models import MasterResume
 from betterleaf.resumes.models import Resume
 from betterleaf.resumes.models import Workspace
 from betterleaf.resumes.permissions import HasWorkspace
@@ -132,17 +132,13 @@ class UploadStatusView(WorkspaceAPIView):
         body = {"task_id": task_id, "status": task_status}
 
         if state == "SUCCESS":
-            master = MasterResume.objects.filter(
-                id=result.result, workspace=workspace,
-            ).first()
-            if master is None:
-                raise NotFound
+            try:
+                master = workspace.master_resume
+            except ObjectDoesNotExist:
+                raise NotFound from None
             body["master_resume_id"] = str(master.id)
             body["resume_ids"] = [
-                str(pk)
-                for pk in Resume.objects.filter(
-                    master_resume=master,
-                ).values_list("id", flat=True)
+                str(pk) for pk in master.resumes.values_list("id", flat=True)
             ]
         elif task_status == "failed":
             body["error"] = "Failed to process the uploaded resume."
