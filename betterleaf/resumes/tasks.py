@@ -58,10 +58,28 @@ def compile_resume(compilation_id: str) -> None:
     compilation.save()
 
 
+def handle_existing_master_upload(
+    workspace_id: str, file_b64: str, filename: str,
+) -> str:
+    """
+    Handle an upload when the workspace already has a MasterResume.
+
+    TODO: decide the behaviour (replace, merge into, or create an additional
+    master resume).
+    """
+    raise NotImplementedError(
+        "Uploading a resume to a workspace that already has a master resume "
+        "is not supported yet.",
+    )
+
+
 @shared_task(bind=True)
 def parse_and_create_master(self, workspace_id: str, file_b64: str, filename: str) -> str:
     """
     Extract resume from PDF and create MasterResume and Resume.
+
+    If the workspace already has a MasterResume, the upload is delegated to
+    `handle_existing_master_upload` (not implemented yet).
 
     Args:
         workspace_id: UUID of workspace
@@ -72,6 +90,11 @@ def parse_and_create_master(self, workspace_id: str, file_b64: str, filename: st
         MasterResume.id
     """
     import base64
+
+    # Checked outside the try block so NotImplementedError isn't retried.
+    if MasterResume.objects.filter(workspace_id=workspace_id).exists():
+        return handle_existing_master_upload(workspace_id, file_b64, filename)
+
     try:
         file_bytes = base64.b64decode(file_b64)
         structured_data = parse_resume_upload(file_bytes, filename)
