@@ -1,9 +1,11 @@
 import base64
 
+from celery.result import AsyncResult
 from django.http import FileResponse
 from django.middleware.csrf import get_token
 from rest_framework import status
 from rest_framework import viewsets
+from rest_framework.exceptions import NotFound
 from rest_framework.decorators import action
 from rest_framework.parsers import MultiPartParser
 from rest_framework.permissions import AllowAny
@@ -15,6 +17,7 @@ from betterleaf.resumes.auth import get_workspace
 from betterleaf.resumes.auth import set_workspace_cookie
 from betterleaf.resumes.catalog import TEMPLATE_CATALOG
 from betterleaf.resumes.models import Compilation
+from betterleaf.resumes.models import MasterResume
 from betterleaf.resumes.models import Resume
 from betterleaf.resumes.models import Workspace
 from betterleaf.resumes.permissions import HasWorkspace
@@ -88,6 +91,63 @@ class UploadPdfView(WorkspaceAPIView):
             {"task_id": task.id, "status": "queued", "created": created},
             status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
         )
+
+
+class UploadStatusView(WorkspaceAPIView):
+    """Poll the progress of a task queued by ``UploadPdfView``.
+
+    ``status`` is one of ``queued`` | ``processing`` | ``succeeded`` | ``failed``.
+    On success the response carries ``master_resume_id`` and ``resume_ids``;
+    on failure a generic ``error`` (the raw exception is never exposed).
+    Tasks belonging to another workspace look identical to unknown ones (404).
+    """
+
+    permission_classes = [HasWorkspace]
+
+    # Celery state -> API status. PENDING is also what Celery reports for
+    # unknown ids, so it is indistinguishable from "queued".
+    STATUS_BY_STATE = {
+        "PENDING": "queued",
+        "RECEIVED": "queued",
+        "STARTED": "processing",
+        "RETRY": "processing",
+        "SUCCESS": "succeeded",
+        "FAILURE": "failed",
+        "REVOKED": "failed",
+    }
+
+    def get(self, request, task_id):
+        workspace = get_workspace(request)
+        result = AsyncResult(task_id)
+        state = result.state
+
+        # With CELERY_RESULT_EXTENDED the task kwargs are stored alongside the
+        # state, so we can verify ownership once the worker has picked it up.
+        kwargs = result.kwargs if isinstance(result.kwargs, dict) else {}
+        owner_id = kwargs.get("workspace_id")
+        if owner_id is not None and owner_id != str(workspace.id):
+            raise NotFound
+
+        task_status = self.STATUS_BY_STATE.get(state, "processing")
+        body = {"task_id": task_id, "status": task_status}
+
+        if state == "SUCCESS":
+            master = MasterResume.objects.filter(
+                id=result.result, workspace=workspace,
+            ).first()
+            if master is None:
+                raise NotFound
+            body["master_resume_id"] = str(master.id)
+            body["resume_ids"] = [
+                str(pk)
+                for pk in Resume.objects.filter(
+                    master_resume=master,
+                ).values_list("id", flat=True)
+            ]
+        elif task_status == "failed":
+            body["error"] = "Failed to process the uploaded resume."
+
+        return Response(body)
 
 
 class WorkspaceView(WorkspaceAPIView):
