@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { uploadPdf } from "@/lib/api";
+import { usePdfUpload } from "@/hooks/use-pdf-upload";
 import "@/styles/landing.css";
 
 /* ------------------------------------------------------------------ *
@@ -171,7 +171,6 @@ export function LandingPage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
-  const [uploading, setUploading] = useState(false);
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -179,33 +178,33 @@ export function LandingPage() {
     toastTimer.current = window.setTimeout(() => setToast(null), 4200);
   }, []);
 
+  const { start, error, isBusy } = usePdfUpload({
+    onSuccess: () => router.replace("/workspace"),
+  });
+
+  useEffect(() => {
+    if (error) showToast(error);
+  }, [error, showToast]);
+
   const openPicker = useCallback(() => {
-    if (uploading) return;
+    if (isBusy) return;
     inputRef.current?.click();
-  }, [uploading]);
+  }, [isBusy]);
 
   const onFileChange = useCallback(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
+    (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       e.target.value = "";
-      if (!file) return;
-      setUploading(true);
-      try {
-        await uploadPdf(file);
-        router.replace("/workspace");
-      } catch {
-        showToast("Upload failed. Please try again.");
-        setUploading(false);
-      }
+      if (file) void start(file);
     },
-    [router, showToast],
+    [start],
   );
 
   const year = new Date().getFullYear();
 
   return (
     <div className="bl">
-      <div className={`progress${uploading ? " active" : ""}`} role="progressbar" aria-hidden={!uploading} aria-label="Uploading your resume">
+      <div className={`progress${isBusy ? " active" : ""}`} role="progressbar" aria-hidden={!isBusy} aria-label="Processing your resume">
         <span className="progress-bar" />
       </div>
       <header className="top">
@@ -412,7 +411,7 @@ export function LandingPage() {
       <input
         ref={inputRef}
         type="file"
-        accept=".pdf,.doc,.docx,application/pdf"
+        accept=".pdf,application/pdf"
         hidden
         onChange={onFileChange}
       />

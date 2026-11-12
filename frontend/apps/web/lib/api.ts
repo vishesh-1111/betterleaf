@@ -11,6 +11,16 @@ export interface ResumeDto {
   updated_at: string;
 }
 
+export class ApiError extends Error {
+  readonly status: number;
+
+  constructor(path: string, status: number, body: string) {
+    super(`API ${path} failed (${status}): ${body.slice(0, 200)}`);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
 function apiUrl(path: string): string {
   return `${API_BASE}/api/${path}`;
 }
@@ -46,9 +56,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    throw new Error(
-      `API ${path} failed (${res.status}): ${text.slice(0, 200)}`,
-    );
+    throw new ApiError(path, res.status, text);
   }
   return (await res.json()) as T;
 }
@@ -136,15 +144,29 @@ export function resumeToFile(resume: ResumeDto): ProjectFile {
   };
 }
 
-export interface UploadPdfResponse {
-  resume: ResumeDto;
+export type UploadStatus = "queued" | "processing" | "succeeded" | "failed";
+
+export interface UploadTaskDto {
+  task_id: string;
+  status: "queued";
   created: boolean;
 }
 
-/** Upload a resume PDF; the backend attaches/creates the workspace + cookie,
- * parses the PDF to LaTeX, and returns the resulting resume. */
-export async function uploadPdf(file: File): Promise<UploadPdfResponse> {
-  const method = "POST";
+export interface UploadStatusDto {
+  task_id: string;
+  status: UploadStatus;
+  master_resume_id?: string;
+  resume_ids?: string[];
+  error?: string;
+}
+
+/** Queue a resume PDF for parsing. The backend attaches/creates the workspace
+ * (setting the `bl_session` cookie) and returns a task to poll with
+ * `getUploadStatus`; the resume doesn't exist yet when this resolves. */
+export async function startPdfUpload(
+  file: File,
+  signal?: AbortSignal,
+): Promise<UploadTaskDto> {
   const headers: Record<string, string> = {};
   const csrf = getCsrfToken();
   if (csrf) headers["X-CSRFToken"] = csrf;
@@ -152,15 +174,27 @@ export async function uploadPdf(file: File): Promise<UploadPdfResponse> {
   const form = new FormData();
   form.append("file", file);
 
-  const res = await fetch(apiUrl("upload-pdf/"), {
+  const path = "upload-pdf/";
+  const res = await fetch(apiUrl(path), {
     credentials: "include",
-    method,
+    method: "POST",
     headers,
     body: form,
+    signal,
   });
   if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`API upload-pdf/ failed (${res.status}): ${text.slice(0, 200)}`);
+    throw new ApiError(path, res.status, await res.text().catch(() => ""));
   }
-  return (await res.json()) as UploadPdfResponse;
+  return (await res.json()) as UploadTaskDto;
+}
+
+/** Poll the status of a task returned by `startPdfUpload`. */
+export async function getUploadStatus(
+  taskId: string,
+  signal?: AbortSignal,
+): Promise<UploadStatusDto> {
+  return request<UploadStatusDto>(
+    `upload-pdf/${encodeURIComponent(taskId)}/status/`,
+    { signal },
+  );
 }
