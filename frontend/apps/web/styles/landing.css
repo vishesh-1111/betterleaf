@@ -616,61 +616,273 @@
   color: var(--spruce);
 }
 
-.bl .toast {
-  position: fixed;
-  left: 50%;
-  bottom: 28px;
-  transform: translate(-50%, 20px);
-  background: var(--spruce);
-  color: #fff;
-  padding: 14px 22px;
-  border-radius: 999px;
-  font-size: 0.95rem;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.25s, transform 0.25s;
-  z-index: 50;
-  max-width: calc(100% - 40px);
-}
-.bl .toast.show {
-  opacity: 1;
-  transform: translate(-50%, 0);
-}
-
-/* upload progress — indeterminate scrolling bar fixed to the top of the page */
-.bl .progress {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  z-index: 60;
-  background: transparent;
+/* upload dialog — shown while a resume PDF uploads and is parsed.
+ * Same frame as the studio mock: 1.5px spruce border, hard offset shadow.
+ * Everything that animates is visible by default and animates *from* zero
+ * (`backwards` fill), so reduced-motion users get a complete static state. */
+.bl dialog.upload {
+  margin: auto; /* `.bl *` zeroes margins, which would un-centre the dialog */
+  width: min(600px, calc(100vw - 32px));
+  max-width: none;
+  padding: 0;
+  border: 1.5px solid var(--spruce);
+  border-radius: 18px;
+  background: var(--paper);
+  color: var(--spruce);
+  box-shadow: 10px 10px 0 var(--spruce);
   overflow: hidden;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.2s;
 }
-.bl .progress.active {
-  opacity: 1;
+.bl dialog.upload[open] {
+  animation: bl-pop 0.42s cubic-bezier(0.2, 0.7, 0.2, 1) both;
 }
-.bl .progress-bar {
-  display: block;
-  height: 100%;
-  width: 40%;
-  background: var(--leaf);
-  border-radius: 999px;
+.bl dialog.upload::backdrop {
+  background: rgba(16, 40, 31, 0.62);
 }
-.bl .progress.active .progress-bar {
-  animation: bl-progress 1.1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+.bl dialog.upload[open]::backdrop {
+  animation: bl-fade 0.3s ease-out both;
+}
+html:has(.bl dialog.upload[open]) {
+  overflow: hidden;
 }
 
-@keyframes bl-progress {
+.bl .up-head {
+  padding: 26px 28px 22px;
+}
+.bl .up-head h2 {
+  font-size: clamp(1.55rem, 4.4vw, 1.95rem);
+}
+.bl .up-head p {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 0.98rem;
+  line-height: 1.5;
+}
+
+.bl .up-stage {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  height: 224px;
+  border-top: 1.5px solid var(--spruce);
+  border-bottom: 1.5px solid var(--spruce);
+}
+
+/* left: LaTeX streaming past, edges faded */
+.bl .up-code {
+  background: var(--spruce);
+  color: #d9e6de;
+  font: 0.8rem/1.65 var(--code);
+  overflow: hidden;
+  min-width: 0;
+}
+.bl .up-window {
+  height: 100%;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 20%, #000 80%, transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 20%, #000 80%, transparent);
+}
+.bl .up-track {
+  padding-top: 40px;
+  animation: bl-stream 15s linear infinite;
+}
+.bl .up-ln {
+  padding: 0 18px;
+  white-space: pre;
+}
+
+/* right: the sheet that writes itself, one cascade top to bottom */
+.bl .up-right {
+  background: var(--chalk);
+  border-left: 1.5px solid var(--spruce);
+  padding: 20px 22px 0;
+  overflow: hidden;
+  min-width: 0;
+}
+.bl .up-paper {
+  height: 100%;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-bottom: 0;
+  padding: 22px 24px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: hidden;
+}
+.bl .up-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.bl .up-row.name,
+.bl .up-row.contact {
+  justify-content: center;
+}
+.bl .up-row.head {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  margin-top: 6px;
+}
+.bl .up-bar {
+  --h: 6px;
+  --ink: 0.14;
+  position: relative;
+  display: block;
+  width: var(--w);
+  height: var(--h);
+  border-radius: 2px;
+  background: rgba(16, 40, 31, var(--ink));
+  transform-origin: left;
+  animation: bl-ink 4.4s cubic-bezier(0.2, 0.7, 0.2, 1) calc(var(--i) * 0.2s) infinite backwards;
+}
+.bl .up-row.name .up-bar {
+  --h: 14px;
+  --ink: 0.3;
+}
+.bl .up-row.head .up-bar {
+  --h: 8px;
+  --ink: 0.26;
+}
+.bl .up-row.row .up-bar {
+  --h: 8px;
+  --ink: 0.2;
+}
+.bl .up-row.head .up-rule {
+  --h: 1.5px;
+  --ink: 0.22;
+}
+
+/* ready: the cascade stops with the whole sheet written, and the sun sweeps
+ * across what was just produced (the sun marks what the AI wrote). */
+.bl .up.done .up-bar {
+  animation: none;
+}
+.bl .up.done .up-track {
+  animation-play-state: paused;
+}
+.bl .up.done .up-bar.hl::after {
+  content: "";
+  position: absolute;
+  inset: -2px -3px;
+  border-radius: 3px;
+  background: rgba(242, 193, 78, 0.6);
+  transform-origin: left;
+  animation: bl-sweep 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) calc(var(--i) * 0.12s) backwards;
+}
+
+.bl .up-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-height: 68px;
+  padding: 12px 18px 12px 28px;
+  background: var(--chalk);
+}
+.bl .up-file {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  font-weight: 600;
+  font-size: 0.93rem;
+}
+.bl .up-file svg {
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  color: var(--leaf);
+}
+.bl .up-file span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bl .up-actions {
+  display: flex;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+
+@keyframes bl-pop {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes bl-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+/* each bar fills, holds, then fades; the per-bar delay makes a rolling wave */
+@keyframes bl-ink {
   0% {
-    transform: translateX(-100%);
+    transform: scaleX(0);
+    opacity: 1;
+  }
+  38% {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+  86% {
+    transform: scaleX(1);
+    opacity: 1;
   }
   100% {
-    transform: translateX(350%);
+    transform: scaleX(1);
+    opacity: 0;
+  }
+}
+/* two identical copies of the source, so -50% loops without a seam */
+@keyframes bl-stream {
+  to {
+    transform: translateY(-50%);
+  }
+}
+@keyframes bl-sweep {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@media (max-width: 520px) {
+  .bl dialog.upload {
+    box-shadow: 6px 6px 0 var(--spruce);
+  }
+  .bl .up-head {
+    padding: 22px 20px 18px;
+  }
+  .bl .up-stage {
+    grid-template-columns: 1fr;
+    height: 176px;
+  }
+  .bl .up-code {
+    display: none;
+  }
+  .bl .up-right {
+    border-left: 0;
+    padding: 16px 20px 0;
+  }
+  .bl .up-foot {
+    flex-wrap: wrap;
+    padding: 12px 20px;
+  }
+  .bl .up-actions {
+    width: 100%;
+  }
+  .bl .up-actions .btn {
+    flex: 1;
   }
 }
 

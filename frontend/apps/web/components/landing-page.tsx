@@ -2,8 +2,13 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { LaTeXLine } from "@/components/latex-line";
+import { UploadDialog } from "@/components/upload-dialog";
 import { usePdfUpload } from "@/hooks/use-pdf-upload";
 import "@/styles/landing.css";
+
+/** How long the "ready" state shows before we open the workspace. */
+const SUCCESS_BEAT_MS = 800;
 
 /* ------------------------------------------------------------------ *
  * Interactive "Fit to one page" demo — mirrors the vanilla JS in the
@@ -41,24 +46,6 @@ function sourceLines(fit: boolean): Line[] {
   a.push({ text: String.raw`\section{Education}`, changed: false });
   a.push({ text: String.raw`% ... Education, then \section{Skills}`, changed: false });
   return a;
-}
-
-/** Split a raw latex line into styled React nodes (commands + braces). */
-function LaTeXLine({ text }: { text: string }) {
-  if (text.startsWith("%")) {
-    return <span className="br">{text}</span>;
-  }
-  // Highlight LaTeX commands and braces.
-  const parts = text.split(/(\\[a-zA-Z]+|[{}])/g);
-  return (
-    <>
-      {parts.map((part, i) => {
-        if (part.startsWith("\\")) return <span key={i} className="cmd">{part}</span>;
-        if (part === "{" || part === "}") return <span key={i} className="br">{part}</span>;
-        return <span key={i}>{part}</span>;
-      })}
-    </>
-  );
 }
 
 function StudioMock() {
@@ -169,33 +156,38 @@ const Leaf = () => (
 export function LandingPage() {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
-  const [toast, setToast] = useState<string | null>(null);
-  const toastTimer = useRef<number | undefined>(undefined);
+  const [fileName, setFileName] = useState("");
+  const navTimer = useRef<number | undefined>(undefined);
 
-  const showToast = useCallback((msg: string) => {
-    setToast(msg);
-    clearTimeout(toastTimer.current);
-    toastTimer.current = window.setTimeout(() => setToast(null), 4200);
-  }, []);
-
-  const { start, error, isBusy } = usePdfUpload({
-    onSuccess: () => router.replace("/workspace"),
+  const { start, reset, phase, error, isBusy } = usePdfUpload({
+    // Let the "ready" state land before the page changes under the user.
+    onSuccess: () => {
+      navTimer.current = window.setTimeout(
+        () => router.replace("/workspace"),
+        SUCCESS_BEAT_MS,
+      );
+    },
   });
 
-  useEffect(() => {
-    if (error) showToast(error);
-  }, [error, showToast]);
+  useEffect(() => () => window.clearTimeout(navTimer.current), []);
 
   const openPicker = useCallback(() => {
     if (isBusy) return;
     inputRef.current?.click();
   }, [isBusy]);
 
+  const chooseAnother = useCallback(() => {
+    reset();
+    inputRef.current?.click();
+  }, [reset]);
+
   const onFileChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       e.target.value = "";
-      if (file) void start(file);
+      if (!file) return;
+      setFileName(file.name);
+      void start(file);
     },
     [start],
   );
@@ -204,9 +196,6 @@ export function LandingPage() {
 
   return (
     <div className="bl">
-      <div className={`progress${isBusy ? " active" : ""}`} role="progressbar" aria-hidden={!isBusy} aria-label="Processing your resume">
-        <span className="progress-bar" />
-      </div>
       <header className="top">
         <div className="wrap nav">
           <a href="#top" className="logo" aria-label="Betterleaf home">
@@ -415,9 +404,13 @@ export function LandingPage() {
         hidden
         onChange={onFileChange}
       />
-      <div className={`toast${toast ? " show" : ""}`} role="status">
-        {toast}
-      </div>
+      <UploadDialog
+        phase={phase}
+        fileName={fileName}
+        error={error}
+        onCancel={reset}
+        onChooseAnother={chooseAnother}
+      />
     </div>
   );
 }
