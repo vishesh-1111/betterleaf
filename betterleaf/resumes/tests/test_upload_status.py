@@ -3,6 +3,8 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
+from django.db import IntegrityError
+from django.db import transaction
 from rest_framework.test import APIClient
 
 from betterleaf.resumes.models import MasterResume
@@ -100,10 +102,18 @@ def test_other_workspaces_task_is_404(client_and_workspace, async_result):
     assert client.get(URL).status_code == 404
 
 
-def test_success_with_other_workspaces_master_is_404(client_and_workspace, async_result):
+def test_success_without_own_master_is_404(client_and_workspace, async_result):
     client, _ = client_and_workspace
     other = Workspace.objects.create()
     master = MasterResume.objects.create(workspace=other, title="theirs")
     async_result.return_value = _async_result("SUCCESS", result=str(master.id))
 
     assert client.get(URL).status_code == 404
+
+
+def test_workspace_can_have_only_one_master_resume(db):
+    workspace = Workspace.objects.create()
+    MasterResume.objects.create(workspace=workspace, title="first")
+
+    with pytest.raises(IntegrityError), transaction.atomic():
+        MasterResume.objects.create(workspace=workspace, title="second")

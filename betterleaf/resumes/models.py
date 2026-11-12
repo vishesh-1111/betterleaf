@@ -28,8 +28,8 @@ class Workspace(models.Model):
 
 class MasterResume(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    workspace = models.ForeignKey(
-        Workspace, on_delete=models.CASCADE, related_name="master_resumes",
+    workspace = models.OneToOneField(
+        Workspace, on_delete=models.CASCADE, related_name="master_resume",
     )
     title = models.CharField(max_length=200)
     structured_data = models.JSONField(blank=True, default=dict)
