@@ -1,4 +1,5 @@
 import base64
+import io
 
 from celery.result import AsyncResult
 from django.core.exceptions import ObjectDoesNotExist
@@ -21,12 +22,13 @@ from betterleaf.resumes.models import Compilation
 from betterleaf.resumes.models import Resume
 from betterleaf.resumes.models import Workspace
 from betterleaf.resumes.permissions import HasWorkspace
+from betterleaf.resumes.serializers import CompilationListSerializer
 from betterleaf.resumes.serializers import CompilationSerializer
 from betterleaf.resumes.serializers import PdfUploadSerializer
 from betterleaf.resumes.serializers import ResumeListSerializer
 from betterleaf.resumes.serializers import ResumeSerializer
 from betterleaf.resumes.serializers import TemplateSerializer
-from betterleaf.resumes.tasks import compile_resume
+from betterleaf.resumes.services.compiler import run_compilation
 from betterleaf.resumes.tasks import parse_and_create_master
 
 
@@ -203,9 +205,10 @@ class ResumeViewSet(viewsets.ModelViewSet):
         compilation = Compilation.objects.create(
             resume=resume, status=Compilation.Status.QUEUED,
         )
-        compile_resume.delay(str(compilation.id))
+        run_compilation(compilation)
+        compilation.refresh_from_db()
         return Response(
-            {"id": str(compilation.id), "status": compilation.status},
+            CompilationSerializer(compilation).data,
             status=status.HTTP_201_CREATED,
         )
 
@@ -216,18 +219,17 @@ class ResumeViewSet(viewsets.ModelViewSet):
             Compilation.objects.filter(
                 resume=resume, status=Compilation.Status.SUCCEEDED,
             )
-            .exclude(pdf="")
+            .exclude(pdf_base64="")
             .order_by("-finished_at")
             .first()
         )
-        if latest is None or not latest.pdf:
+        if latest is None:
             return Response(
                 {"detail": "No compiled PDF available."},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        latest.pdf.open("rb")
         return FileResponse(
-            latest.pdf,
+            io.BytesIO(base64.b64decode(latest.pdf_base64)),
             as_attachment=True,
             filename=f"{resume.slug}.pdf",
             content_type="application/pdf",
@@ -236,7 +238,11 @@ class ResumeViewSet(viewsets.ModelViewSet):
 
 class CompilationViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [HasWorkspace]
-    serializer_class = CompilationSerializer
+
+    def get_serializer_class(self):
+        if self.action == "list":
+            return CompilationListSerializer
+        return CompilationSerializer
 
     def get_queryset(self):
         workspace = get_workspace(self.request)

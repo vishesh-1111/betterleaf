@@ -26,8 +26,8 @@ import {
   findPrevious,
 } from "@codemirror/search";
 import { latex } from "codemirror-lang-latex";
-import { useDocumentStore, type ProjectFile } from "@/stores/document-store";
-import { compileLatex, type CompileResource } from "@/lib/latex-compiler";
+import { useDocumentStore } from "@/stores/document-store";
+import { compileLatex } from "@/lib/latex-compiler";
 import { EditorToolbar } from "./editor-toolbar";
 import { AIDrawer } from "./ai-drawer";
 import { ImagePreview } from "./image-preview";
@@ -146,25 +146,6 @@ function getStickyLines(
   }
 
   return stack;
-}
-
-function gatherResources(files: ProjectFile[]): CompileResource[] {
-  return files.map((f) => {
-    if (f.type === "tex") {
-      return {
-        path: f.name,
-        content: f.content ?? "",
-        main: f.name === "document.tex",
-      };
-    }
-    const dataUrl = f.dataUrl ?? "";
-    let base64 = dataUrl.includes(",") ? dataUrl.split(",")[1] : dataUrl;
-    base64 = base64.replace(/\s/g, "");
-    return {
-      path: f.name,
-      file: base64,
-    };
-  });
 }
 
 function getActiveFileContent(): string {
@@ -293,9 +274,7 @@ export function LatexEditor() {
     if (isCompiling) return;
     setIsCompiling(true);
     try {
-      const currentFiles = useDocumentStore.getState().files;
-      const resources = gatherResources(currentFiles);
-      const data = await compileLatex(resources);
+      const data = await compileLatex();
       setPdfData(data);
     } catch (error) {
       setCompileError(

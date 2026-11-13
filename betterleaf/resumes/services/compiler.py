@@ -87,3 +87,49 @@ def compile_latex(
         raise LatexCompileError("LaTeX service returned a malformed PDF") from exc
 
     return status, log, pdf
+
+
+def run_compilation(compilation) -> None:
+    """Synchronously compile ``compilation.resume`` and persist the outcome.
+
+    Imports are local to keep this module importable without Django models
+    being loaded. Never raises for compile failures; they are recorded on the
+    ``Compilation`` (status FAILED + log).
+    """
+    from django.utils import timezone
+
+    from betterleaf.resumes.catalog import TEMPLATE_CATALOG
+    from betterleaf.resumes.models import Compilation
+
+    resume = compilation.resume
+    compilation.status = Compilation.Status.RUNNING
+    compilation.save(update_fields=["status"])
+
+    def finish(status, log, pdf=None):
+        if pdf:
+            compilation.pdf_base64 = base64.b64encode(pdf).decode("ascii")
+        compilation.status = status
+        compilation.log = log
+        compilation.finished_at = timezone.now()
+        compilation.save()
+
+    try:
+        template = TEMPLATE_CATALOG[resume.template]
+    except KeyError:
+        finish(Compilation.Status.FAILED, f"Unknown template: {resume.template}")
+        return
+
+    extra_files: dict[str, bytes] = {}
+    if template.cls_path is not None:
+        extra_files["resume.cls"] = template.cls_path.read_bytes()
+
+    try:
+        status, log, pdf = compile_latex(resume.main_tex, extra_files=extra_files)
+    except LatexCompileError as exc:
+        finish(Compilation.Status.FAILED, str(exc))
+        return
+
+    if status == 0 and pdf:
+        finish(Compilation.Status.SUCCEEDED, log, pdf)
+    else:
+        finish(Compilation.Status.FAILED, log)

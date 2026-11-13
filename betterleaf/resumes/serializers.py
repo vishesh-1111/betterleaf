@@ -51,8 +51,6 @@ class MasterResumeSerializer(serializers.ModelSerializer):
 
 
 class ResumeSerializer(serializers.ModelSerializer):
-    latest_pdf_url = serializers.SerializerMethodField()
-
     class Meta:
         model = Resume
         fields = [
@@ -63,14 +61,12 @@ class ResumeSerializer(serializers.ModelSerializer):
             "main_tex",
             "structured_data",
             "updated_at",
-            "latest_pdf_url",
         ]
         read_only_fields = [
             "id",
             "slug",
             "updated_at",
             "structured_data",
-            "latest_pdf_url",
         ]
 
     def validate_template(self, value):
@@ -78,17 +74,6 @@ class ResumeSerializer(serializers.ModelSerializer):
             message = f"Unknown template: {value}"
             raise serializers.ValidationError(message)
         return value
-
-    def get_latest_pdf_url(self, obj):
-        latest = (
-            Compilation.objects.filter(resume=obj, status=Compilation.Status.SUCCEEDED)
-            .exclude(pdf="")
-            .order_by("-finished_at")
-            .first()
-        )
-        if latest is None or not latest.pdf:
-            return None
-        return latest.pdf.url
 
 
 class ResumeListSerializer(serializers.ModelSerializer):
@@ -98,14 +83,14 @@ class ResumeListSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "slug", "updated_at"]
 
 
-class CompilationSerializer(serializers.ModelSerializer):
-    pdf_url = serializers.SerializerMethodField()
+class CompilationListSerializer(serializers.ModelSerializer):
+    """Light shape for listings: omits the (large) base64 PDF."""
 
     class Meta:
         model = Compilation
-        fields = ["id", "status", "pdf_url", "log", "created_at", "finished_at"]
+        fields = ["id", "status", "log", "created_at", "finished_at"]
 
-    def get_pdf_url(self, obj):
-        if not obj.pdf:
-            return None
-        return obj.pdf.url
+
+class CompilationSerializer(CompilationListSerializer):
+    class Meta(CompilationListSerializer.Meta):
+        fields = [*CompilationListSerializer.Meta.fields, "pdf_base64"]

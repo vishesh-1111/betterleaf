@@ -11,7 +11,7 @@ import {
   PlusIcon,
   DownloadIcon,
 } from "lucide-react";
-import { useDocumentStore, type ProjectFile } from "@/stores/document-store";
+import { useDocumentStore } from "@/stores/document-store";
 import { Button } from "@/components/ui/button";
 import { checkAuthentication, googleLoginUrl } from "@/lib/api";
 import {
@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { compileLatex, type CompileResource } from "@/lib/latex-compiler";
+import { compileLatex } from "@/lib/latex-compiler";
 
 const ZOOM_OPTIONS = [
   { value: "0.5", label: "50%" },
@@ -45,25 +45,6 @@ const PdfViewer = dynamic(
     ),
   },
 );
-
-function gatherResources(files: ProjectFile[]): CompileResource[] {
-  return files.map((f) => {
-    if (f.type === "tex") {
-      return {
-        path: f.name,
-        content: f.content ?? "",
-        main: f.name === "document.tex",
-      };
-    }
-    const dataUrl = f.dataUrl ?? "";
-    const base64 = dataUrl.includes(",") ? dataUrl.split(",")[1] : dataUrl;
-    return {
-      path: f.name,
-      content: base64,
-      encoding: "base64",
-    };
-  });
-}
 
 export function PdfPreview() {
   const pdfData = useDocumentStore((s) => s.pdfData);
@@ -123,9 +104,7 @@ export function PdfPreview() {
     const compile = async () => {
       setIsCompiling(true);
       try {
-        const currentFiles = useDocumentStore.getState().files;
-        const resources = gatherResources(currentFiles);
-        const data = await compileLatex(resources);
+        const data = await compileLatex();
         setPdfData(data);
       } catch (error) {
         setCompileError(
@@ -153,9 +132,7 @@ export function PdfPreview() {
     const compile = async () => {
       setIsCompiling(true);
       try {
-        const currentFiles = useDocumentStore.getState().files;
-        const resources = gatherResources(currentFiles);
-        const data = await compileLatex(resources);
+        const data = await compileLatex();
         setPdfData(data);
       } catch (error) {
         setCompileError(
@@ -215,10 +192,9 @@ export function PdfPreview() {
 
       let data = useDocumentStore.getState().pdfData;
       if (!data) {
-        const currentFiles = useDocumentStore.getState().files;
         setIsCompiling(true);
         try {
-          data = await compileLatex(gatherResources(currentFiles));
+          data = await compileLatex();
           setPdfData(data);
         } catch (error) {
           setCompileError(
@@ -257,9 +233,7 @@ export function PdfPreview() {
     setIsCompiling(true);
     setPdfError(null);
     try {
-      const currentFiles = useDocumentStore.getState().files;
-      const resources = gatherResources(currentFiles);
-      const data = await compileLatex(resources);
+      const data = await compileLatex();
       setPdfData(data);
     } catch (error) {
       setCompileError(

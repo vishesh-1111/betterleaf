@@ -105,6 +105,24 @@ export async function deleteResume(id: string): Promise<void> {
   await request<void>(`resumes/${id}/`, { method: "DELETE" });
 }
 
+export type CompilationStatus = "queued" | "running" | "succeeded" | "failed";
+
+export interface CompilationDto {
+  id: string;
+  status: CompilationStatus;
+  /** Base64-encoded PDF; empty unless the compile succeeded. */
+  pdf_base64: string;
+  log: string;
+}
+
+/** Compile the resume's saved `main_tex` via Django. The request is
+ * synchronous: it resolves once pdflatex has finished (or failed). */
+export async function compileResume(resumeId: string): Promise<CompilationDto> {
+  return request<CompilationDto>(`resumes/${resumeId}/compile/`, {
+    method: "POST",
+  });
+}
+
 export interface AuthStatus {
   authenticated: boolean;
 }

@@ -91,7 +91,9 @@ class Compilation(models.Model):
     status = models.CharField(
         max_length=20, choices=Status.choices, default=Status.QUEUED,
     )
-    pdf = models.FileField(upload_to="resumes/pdfs/%Y/%m/", null=True, blank=True)
+    # Compiled PDF, base64-encoded (ASCII). Kept in the row so deploys need no
+    # media storage and the compile response can return it directly.
+    pdf_base64 = models.TextField(blank=True, default="")
     log = models.TextField(blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
     finished_at = models.DateTimeField(null=True, blank=True)
