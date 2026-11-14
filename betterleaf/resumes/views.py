@@ -38,8 +38,6 @@ class CsrfCookieAPIView(APIView):
     ``request.workspace``, resolved by ``WorkspaceMiddleware``.
     """
 
-    permission_classes = [AllowAny]
-
     def initial(self, request, *args, **kwargs):
         get_token(request)
         super().initial(request, *args, **kwargs)
@@ -57,6 +55,7 @@ class UserStatusView(CsrfCookieAPIView):
 
 
 class UploadPdfView(CsrfCookieAPIView):
+    permission_classes = [AllowAny]
     parser_classes = [MultiPartParser]
 
     def post(self, request):

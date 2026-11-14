@@ -11,8 +11,9 @@ class WorkspaceMiddleware:
     the upload flow does that through ``get_or_create_workspace``.
 
     Must sit after ``AuthenticationMiddleware`` so ``request.user`` is set.
-    Only Django session auth is seen here: a DRF token-authenticated caller
-    is authenticated later, inside the view, so appears as a guest.
+    Session login (allauth) is the only auth mechanism, so ``request.user`` is
+    already final here. Don't add a DRF-only scheme such as token auth without
+    revisiting this, since DRF authenticates later, inside the view.
     """
 
     def __init__(self, get_response):
