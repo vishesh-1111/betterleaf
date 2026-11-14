@@ -5,6 +5,7 @@ import typing
 from allauth.account.signals import user_logged_in
 from django.dispatch import receiver
 
+from betterleaf.resumes.auth import GUEST_COOKIE_NAME
 from betterleaf.resumes.auth import claim_guest_workspace
 from betterleaf.resumes.auth import get_guest_workspace
 
@@ -23,6 +24,6 @@ def claim_anonymous_workspace(
     logged in, so in-progress work isn't stranded behind the ``bl_session``
     cookie once requests resolve to the signed-in user's workspace.
     """
-    guest = get_guest_workspace(request)
+    guest = get_guest_workspace(request.COOKIES.get(GUEST_COOKIE_NAME))
     if guest is not None:
         claim_guest_workspace(guest, user)

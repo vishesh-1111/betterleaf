@@ -1,10 +1,10 @@
 from rest_framework.permissions import BasePermission
 
-from betterleaf.resumes.auth import get_workspace
-
 
 class HasWorkspace(BasePermission):
+    """Requires ``request.workspace`` (set by ``WorkspaceMiddleware``)."""
+
     message = "No active workspace; upload a resume to get started."
 
     def has_permission(self, request, view):
-        return get_workspace(request) is not None
+        return getattr(request, "workspace", None) is not None

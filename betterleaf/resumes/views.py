@@ -15,12 +15,10 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from betterleaf.resumes.auth import get_or_create_workspace
-from betterleaf.resumes.auth import get_workspace
 from betterleaf.resumes.auth import set_workspace_cookie
 from betterleaf.resumes.catalog import TEMPLATE_CATALOG
 from betterleaf.resumes.models import Compilation
 from betterleaf.resumes.models import Resume
-from betterleaf.resumes.models import Workspace
 from betterleaf.resumes.permissions import HasWorkspace
 from betterleaf.resumes.serializers import CompilationListSerializer
 from betterleaf.resumes.serializers import CompilationSerializer
@@ -32,70 +30,60 @@ from betterleaf.resumes.services.compiler import run_compilation
 from betterleaf.resumes.tasks import parse_and_create_master
 
 
-class WorkspaceAPIView(APIView):
+class CsrfCookieAPIView(APIView):
     """Base for the SPA's session-bootstrap endpoints (reachable by guests).
 
-    * Forces a csrftoken cookie onto the response so the SPA can echo it back
-      as X-CSRFToken on subsequent unsafe API calls.
-    * ``get_or_create_workspace()`` resolves the caller's workspace (signed-in
-      user's, else the guest's), minting a guest workspace if there is none.
-      When it does, the ``bl_session`` cookie is set on the response.
+    Forces a csrftoken cookie onto the response so the SPA can echo it back
+    as X-CSRFToken on subsequent unsafe API calls. The caller's workspace is
+    ``request.workspace``, resolved by ``WorkspaceMiddleware``.
     """
 
     permission_classes = [AllowAny]
-    new_guest_token: str | None = None
 
     def initial(self, request, *args, **kwargs):
         get_token(request)
         super().initial(request, *args, **kwargs)
 
-    def get_or_create_workspace(self) -> Workspace:
-        workspace, self.new_guest_token = get_or_create_workspace(self.request)
-        return workspace
 
-    def finalize_response(self, request, response, *args, **kwargs):
-        response = super().finalize_response(request, response, *args, **kwargs)
-        if self.new_guest_token is not None:
-            set_workspace_cookie(response, self.new_guest_token)
-        return response
-
-
-class UserStatusView(WorkspaceAPIView):
+class UserStatusView(CsrfCookieAPIView):
     def get(self, request):
         user = getattr(request, "user", None)
         return Response(
             {
                 "authenticated": user is not None and user.is_authenticated,
-                "has_workspace": get_workspace(request) is not None,
+                "has_workspace": request.workspace is not None,
             },
         )
 
 
-class UploadPdfView(WorkspaceAPIView):
+class UploadPdfView(CsrfCookieAPIView):
     parser_classes = [MultiPartParser]
 
     def post(self, request):
-        # Validate before resolving the workspace so a bad upload never
+        # Validate before getting/creating the workspace so a bad upload never
         # creates a guest workspace.
         serializer = PdfUploadSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         upload = serializer.validated_data["file"]
 
-        workspace = self.get_or_create_workspace()
+        workspace, new_guest_token = get_or_create_workspace(request)
         task = parse_and_create_master.delay(
             workspace_id=str(workspace.id),
             file_b64=base64.b64encode(upload.read()).decode("utf-8"),
             filename=upload.name,
         )
 
-        created = self.new_guest_token is not None
-        return Response(
+        created = new_guest_token is not None
+        response = Response(
             {"task_id": task.id, "status": "queued", "created": created},
             status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
         )
+        if created:
+            set_workspace_cookie(response, new_guest_token)
+        return response
 
 
-class UploadStatusView(WorkspaceAPIView):
+class UploadStatusView(CsrfCookieAPIView):
     """Poll the progress of a task queued by ``UploadPdfView``.
 
     ``status`` is one of ``queued`` | ``processing`` | ``succeeded`` | ``failed``.
@@ -119,7 +107,7 @@ class UploadStatusView(WorkspaceAPIView):
     }
 
     def get(self, request, task_id):
-        workspace = get_workspace(request)
+        workspace = request.workspace
         result = AsyncResult(task_id)
         state = result.state
 
@@ -148,11 +136,11 @@ class UploadStatusView(WorkspaceAPIView):
         return Response(body)
 
 
-class WorkspaceView(WorkspaceAPIView):
+class WorkspaceView(CsrfCookieAPIView):
     permission_classes = [HasWorkspace]
 
     def get(self, request):
-        workspace = get_workspace(request)
+        workspace = request.workspace
         resumes = ResumeListSerializer(
             Resume.objects.filter(workspace=workspace), many=True,
         ).data
@@ -176,10 +164,7 @@ class ResumeViewSet(viewsets.ModelViewSet):
     permission_classes = [HasWorkspace]
 
     def get_queryset(self):
-        workspace = get_workspace(self.request)
-        if workspace is None:
-            return Resume.objects.none()
-        return Resume.objects.filter(workspace=workspace)
+        return Resume.objects.filter(workspace=self.request.workspace)
 
     def get_serializer_class(self):
         if self.action == "list":
@@ -187,10 +172,9 @@ class ResumeViewSet(viewsets.ModelViewSet):
         return ResumeSerializer
 
     def perform_create(self, serializer):
-        workspace = get_workspace(self.request)
         template = TEMPLATE_CATALOG[serializer.validated_data["template"]]
         serializer.save(
-            workspace=workspace,
+            workspace=self.request.workspace,
             main_tex=template.starter_tex.read_text(),
         )
 
@@ -245,7 +229,4 @@ class CompilationViewSet(viewsets.ReadOnlyModelViewSet):
         return CompilationSerializer
 
     def get_queryset(self):
-        workspace = get_workspace(self.request)
-        if workspace is None:
-            return Compilation.objects.none()
-        return Compilation.objects.filter(resume__workspace=workspace)
+        return Compilation.objects.filter(resume__workspace=self.request.workspace)

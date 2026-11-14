@@ -44,19 +44,19 @@ def delete_workspace_cookie(response) -> None:
     response.delete_cookie(GUEST_COOKIE_NAME)
 
 
-def _authenticated_user(request):
-    user = getattr(request, "user", None)
-    if user is not None and user.is_authenticated:
-        return user
-    return None
+def get_user_workspace(user) -> Workspace:
+    """The signed-in user's workspace, created lazily on first use."""
+    workspace, _ = Workspace.objects.get_or_create(user=user)
+    return workspace
 
 
-def get_guest_workspace(request) -> Workspace | None:
-    """The unexpired anonymous workspace named by the `bl_session` cookie."""
-    raw = request.COOKIES.get(GUEST_COOKIE_NAME)
-    if not raw:
+def get_guest_workspace(raw_token: str | None) -> Workspace | None:
+    """The unexpired anonymous workspace named by a ``bl_session`` token."""
+    if not raw_token:
         return None
-    workspace = Workspace.objects.filter(anonymous_token_hash=hash_token(raw)).first()
+    workspace = Workspace.objects.filter(
+        anonymous_token_hash=hash_token(raw_token),
+    ).first()
     if workspace is None:
         return None
     if workspace.expires_at is not None and workspace.expires_at < timezone.now():
@@ -64,33 +64,43 @@ def get_guest_workspace(request) -> Workspace | None:
     return workspace
 
 
-def get_workspace(request) -> Workspace | None:
-    """Resolve the request's workspace: the signed-in user's (created lazily),
-    else the guest workspace named by the `bl_session` cookie."""
-    user = _authenticated_user(request)
-    if user is not None:
-        workspace, _ = Workspace.objects.get_or_create(user=user)
-        return workspace
-    return get_guest_workspace(request)
+def create_guest_workspace() -> tuple[Workspace, str]:
+    """Mint an anonymous workspace.
 
-
-def get_or_create_workspace(request) -> tuple[Workspace, str | None]:
-    """Like `get_workspace`, but mints a guest workspace when there is none.
-
-    Returns ``(workspace, raw_token)``; ``raw_token`` is set only when a new guest
-    workspace was created, and must be handed to the client via
-    ``set_workspace_cookie``.
+    Returns ``(workspace, raw_token)``; the raw token must be handed to the
+    client via ``set_workspace_cookie`` (only its hash is stored).
     """
-    workspace = get_workspace(request)
-    if workspace is not None:
-        return workspace, None
-
     raw, token_hash = new_anonymous_token()
     workspace = Workspace.objects.create(
         anonymous_token_hash=token_hash,
         expires_at=timezone.now() + ANONYMOUS_WORKSPACE_TTL,
     )
     return workspace, raw
+
+
+def resolve_workspace(request) -> Workspace | None:
+    """Who is this request? The signed-in user's workspace, else the guest
+    workspace named by the cookie, else ``None``. Never creates a guest
+    workspace; that is ``get_or_create_workspace``'s job.
+    """
+    user = getattr(request, "user", None)
+    if user is not None and user.is_authenticated:
+        return get_user_workspace(user)
+    return get_guest_workspace(request.COOKIES.get(GUEST_COOKIE_NAME))
+
+
+def get_or_create_workspace(request) -> tuple[Workspace, str | None]:
+    """The workspace service for flows that must have one (the upload).
+
+    Relies on ``WorkspaceMiddleware`` having set ``request.workspace``. Returns
+    ``(workspace, raw_token)``; ``raw_token`` is set only when a new guest
+    workspace was created, and the caller must set it with
+    ``set_workspace_cookie``.
+    """
+    workspace = request.workspace
+    if workspace is not None:
+        return workspace, None
+    return create_guest_workspace()
 
 
 def claim_guest_workspace(guest: Workspace, user) -> None:
