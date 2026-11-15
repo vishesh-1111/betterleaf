@@ -32,7 +32,6 @@ export function PdfViewer({
   const file = useMemo(() => {
     const pdfData =
       data instanceof Uint8Array ? data : new Uint8Array(Object.values(data));
-    hasSetInitialScale.current = false;
     return { data: pdfData.slice() };
   }, [data]);
 
