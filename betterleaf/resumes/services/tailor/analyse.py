@@ -1,5 +1,7 @@
 """Score a job description against a master resume and pick what to keep."""
 
+import logging
+
 from pydantic import ValidationError
 
 from betterleaf.resumes.services.llm import load_prompt
@@ -8,6 +10,8 @@ from betterleaf.resumes.services.tailor.master_view import MasterIndex
 from betterleaf.resumes.services.tailor.master_view import index_master
 from betterleaf.resumes.services.tailor.master_view import render_master_for_prompt
 from betterleaf.resumes.services.tailor.schemas import TailoringAnalysis
+
+logger = logging.getLogger(__name__)
 
 _MAX_TOKENS = 4000
 _MAX_ATTEMPTS = 2  # first try plus one retry with the errors fed back
@@ -110,7 +114,7 @@ def analyse_job_fit(job_text: str, master_data: dict) -> TailoringAnalysis:
     )
 
     errors: list[str] = []
-    for _ in range(_MAX_ATTEMPTS):
+    for attempt in range(1, _MAX_ATTEMPTS + 1):
         message = user
         if errors:
             message += (
@@ -122,11 +126,13 @@ def analyse_job_fit(job_text: str, master_data: dict) -> TailoringAnalysis:
             analysis = TailoringAnalysis.model_validate(raw)
         except ValidationError as exc:
             errors = [f"invalid JSON shape: {e['loc']}: {e['msg']}" for e in exc.errors()[:10]]
+            logger.warning("Tailoring answer rejected (attempt %d): %s", attempt, errors)
             continue
         errors = check_analysis(analysis, master_data)
         if not errors:
             tidy_gap_questions(analysis)
             return analysis
+        logger.warning("Tailoring answer rejected (attempt %d): %s", attempt, errors)
 
     msg = "Could not analyse this job description: " + "; ".join(errors[:5])
     raise TailoringError(msg)

@@ -1,0 +1,36 @@
+Senior Backend Engineer, Data Platform
+Northwind Analytics · Bengaluru, India (Hybrid) · Full-time
+
+About the role
+Northwind Analytics builds a self-serve analytics platform used by finance teams to explore large datasets and generate reports automatically. We are looking for a Senior Backend Engineer to own the services that ingest, process and serve that data.
+
+What you'll do
+- Design and build backend services in Python (Django / FastAPI) that power our analytics APIs
+- Build and operate asynchronous job pipelines using Celery and Redis (or similar queues)
+- Own data ingestion pipelines built on Kafka and object storage (S3 or compatible), handling millions of events per day
+- Model data in PostgreSQL and design efficient partitioning and indexing strategies
+- Containerise services with Docker and deploy them on AWS
+- Add monitoring and alerting (Prometheus, Grafana) so we catch problems before customers do
+- Review code, mentor junior engineers and contribute to technical design discussions
+
+Requirements
+- 3+ years of professional experience building backend systems in Python
+- Strong experience with Django or FastAPI and REST API design
+- Hands-on experience with Celery, Redis or another task queue
+- Experience with Kafka or a similar streaming platform
+- Solid knowledge of PostgreSQL and SQL performance tuning
+- Experience deploying to AWS (S3, ECS or EKS, RDS) using Docker
+- Familiarity with CI/CD pipelines and automated testing
+- Bachelor's degree in Computer Science or a related field, or equivalent experience
+
+Nice to have
+- Experience with Apache Iceberg, Parquet or other lakehouse formats
+- Experience integrating LLMs into production workflows (RAG, agents)
+- Experience with Kubernetes and Terraform
+- Open-source contributions or competitive programming background
+- Experience with Go or Rust
+
+What we offer
+- Competitive salary and equity
+- Flexible working hours and a learning budget
+- A small, senior team where your work ships to customers every week

@@ -1,0 +1,146 @@
+{
+  "name": "Aarav Sharma",
+  "contact": {
+    "phone": "+91-9876543210",
+    "email": "aarav.sharma@example.com",
+    "linkedin": "https://www.linkedin.com/in/aarav-sharma-dev",
+    "github": "aarav-sharma-dev",
+    "portfolio": "https://aarav-sharma.dev"
+  },
+  "summary": {
+    "text": "Backend engineer with 2+ years of experience building data-intensive Python services, async pipelines and ML-backed APIs."
+  },
+  "experience": [
+    {
+      "id": "e1a4c9d02b7f",
+      "company": "Lumen Finance",
+      "duration": "Jun 2024 - Present",
+      "role": "Backend Engineer",
+      "bullets": [
+        {
+          "id": "b01f3a9c5d21",
+          "text": "Built a Django and Celery workflow platform that orchestrates parallel data ingestion, analysis and report generation, cutting portfolio report turnaround from 3 hours to under 60 seconds."
+        },
+        {
+          "id": "b02e7c4a8f13",
+          "text": "Designed monthly Apache Iceberg partitioning on AWS S3 for 15+ years of market data, reducing partitions from 5,000+ daily to ~180 monthly while keeping date-range pruning."
+        },
+        {
+          "id": "b03d1b6e9a47",
+          "text": "Developed a Kafka-based ingestion pipeline loading financial datasets into MinIO across 25+ topics and 800+ partitions for downstream analytics."
+        },
+        {
+          "id": "b04a5f2c7e90",
+          "text": "Added Prometheus and Grafana dashboards for the ingestion services, tracking consumer lag and p99 latency across 1,000+ daily jobs."
+        }
+      ]
+    },
+    {
+      "id": "e2b8d71f4c36",
+      "company": "Vector Labs",
+      "duration": "Jan 2024 - May 2024",
+      "role": "Software Engineering Intern",
+      "bullets": [
+        {
+          "id": "b05c8e3d1a62",
+          "text": "Built REST APIs in FastAPI for an internal document search tool, serving 50+ users with PostgreSQL full-text search."
+        },
+        {
+          "id": "b06f9a2b4d85",
+          "text": "Containerised the service with Docker and set up a GitHub Actions pipeline running pytest on every pull request."
+        }
+      ]
+    }
+  ],
+  "technical_skills": [
+    {
+      "id": "s1c3e5a7b9d1",
+      "key": "Languages",
+      "value": "Python, C++, TypeScript, JavaScript, SQL"
+    },
+    {
+      "id": "s2d4f6b8c0e2",
+      "key": "Backend & APIs",
+      "value": "Django, FastAPI, Node.js, Celery, Redis, REST"
+    },
+    {
+      "id": "s3e5a7c9d1f3",
+      "key": "Cloud, Infrastructure & Data",
+      "value": "AWS, Docker, Kafka, Apache Iceberg, MinIO, PostgreSQL, MongoDB, Git"
+    },
+    {
+      "id": "s4f6b8d0e2a4",
+      "key": "AI/ML",
+      "value": "LLM applications, RAG, LangGraph, Hugging Face, ONNX Runtime"
+    },
+    {
+      "id": "s5a7c9e1f3b5",
+      "key": "Observability",
+      "value": "Prometheus, Grafana, Langfuse"
+    }
+  ],
+  "education": [
+    {
+      "id": "d1b3d5f7a9c1",
+      "institution": "Ramaiah Institute of Technology",
+      "duration": "2021 - 2025",
+      "degree": "Bachelor of Engineering in Computer Science"
+    }
+  ],
+  "projects": [
+    {
+      "id": "p1c4e7a0d3f6",
+      "title": "QueryLens - Natural Language Analytics",
+      "github": "https://github.com/aarav-sharma-dev/querylens",
+      "deployed": null,
+      "tech_stack": "Next.js, FastAPI, MongoDB, LangGraph",
+      "bullets": [
+        {
+          "id": "b07a1d4e8c30",
+          "text": "Built an analytics assistant that turns natural language questions into safe SQL against private databases and returns charts without manual queries."
+        },
+        {
+          "id": "b08b2e5f9d41",
+          "text": "Implemented workspace sharing with role-based access control so teams can share findings while keeping data confidential."
+        }
+      ]
+    },
+    {
+      "id": "p2d5f8b1e4a7",
+      "title": "FaceGuard - Passive Liveness Detection",
+      "github": "https://github.com/aarav-sharma-dev/faceguard",
+      "deployed": "https://huggingface.co/spaces/aarav-sharma-dev/faceguard",
+      "tech_stack": "PyTorch, ONNX Runtime, Hugging Face",
+      "bullets": [
+        {
+          "id": "b09c3f6a0e52",
+          "text": "Fine-tuned an anti-spoofing model on ~20K images to reach 92% validation accuracy and deployed ONNX inference endpoints for real-time checks."
+        }
+      ]
+    }
+  ],
+  "achievements": [
+    {
+      "id": "a1e6a9c2f5b8",
+      "title": "Competitive Programming",
+      "bullets": [
+        {
+          "id": "b10d4a7b1f63",
+          "text": "Specialist on Codeforces (max rating 1450), solving algorithm and data-structure problems in C++."
+        },
+        {
+          "id": "b11e5b8c2a74",
+          "text": "Global rank 310 among 25,000+ participants in CodeChef Starters 120."
+        }
+      ]
+    }
+  ],
+  "section_order": [
+    "summary",
+    "education",
+    "experience",
+    "projects",
+    "technical_skills",
+    "achievements"
+  ]
+}

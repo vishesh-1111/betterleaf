@@ -29,16 +29,19 @@ The user message has two parts:
    friendly question asking whether the candidate has that experience.
 4. **Selection.** Choose what goes on a one-page tailored resume, most
    relevant first.
-   - `experience`, `projects`, `achievements`: items by `id`, each with
+   - `experience`, `projects`, `achievements`: a list of objects, each
+     `{"id": ..., "bullet_ids": [...]}` (never a bare id string), with
      `bullet_ids` in display order. About 4 bullets per role, at most 3
      projects.
-   - `education`: item ids.
+   - `education`: a list of plain item id strings.
    - `technical_skills`: group ids, each with `skills`, the words to keep from
      that group's list, copied exactly.
 
 # Rules
 - Never invent facts, ids, quotes, or skills. Every id and quote must come
   from the master resume.
+- Write ids without the tag: `9f3e1ac2b4d0`, not `b:9f3e1ac2b4d0` or
+  `edu:9f3e1ac2b4d0`.
 - A `bullet_id` must belong to the item it is listed under.
 - Do not write or reword any resume text.
 
@@ -64,7 +67,7 @@ Return only one JSON object, no prose and no code fences:
   "selection": {
     "experience": [{"id": "ab12cd34ef56", "bullet_ids": ["9f3e1ac2b4d0"]}],
     "projects": [{"id": "...", "bullet_ids": ["..."]}],
-    "achievements": [],
+    "achievements": [{"id": "...", "bullet_ids": ["..."]}],
     "education": ["..."],
     "technical_skills": [{"id": "...", "skills": ["Python", "Django"]}]
   }
