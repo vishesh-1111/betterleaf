@@ -5,8 +5,11 @@ nested models. These models are the single source of truth for that shape and
 are used to validate the model output before it reaches the rest of the app.
 """
 
+import uuid
+
 from pydantic import BaseModel
 from pydantic import Field
+from pydantic import field_validator
 
 # Canonical set of section keys a resume may carry. NOT a rendering order; the
 # order sections appear in is dynamic and captured via ``section_order``.
@@ -18,6 +21,27 @@ SECTION_KEYS = (
     "technical_skills",
     "achievements",
 )
+
+
+def new_id() -> str:
+    """Short unique id, assigned by code (never the LLM)."""
+    return uuid.uuid4().hex[:12]
+
+
+class Bullet(BaseModel):
+    id: str = Field(default_factory=new_id)
+    text: str
+
+
+class _WithBullets(BaseModel):
+    """Mixin: ``bullets`` accepts plain strings and wraps them with ids."""
+
+    bullets: list[Bullet] = Field(default_factory=list)
+
+    @field_validator("bullets", mode="before")
+    @classmethod
+    def _wrap_bullets(cls, value):
+        return [{"text": b} if isinstance(b, str) else b for b in value or []]
 
 
 class Summary(BaseModel):
@@ -34,16 +58,17 @@ class ContactInfo(BaseModel):
     portfolio: str | None = None
 
 
-class Experience(BaseModel):
+class Experience(_WithBullets):
+    id: str = Field(default_factory=new_id)
     company: str = Field(description="Name of the company")
     duration: str = Field(description="Duration, e.g. 'Jan 2021 - Mar 2023'")
     role: str = Field(description="Role/title, e.g. 'AI Engineer'")
-    bullets: list[str] = Field(default_factory=list)
 
 
 class TechnicalSkill(BaseModel):
     """One skill group: a category key and comma-separated values."""
 
+    id: str = Field(default_factory=new_id)
     key: str = Field(description="Category, e.g. 'Systems & Tooling'")
     value: str = Field(
         description="Comma-separated values, e.g. 'Linux, Windows, GCC, CMake, Git'",
@@ -51,24 +76,25 @@ class TechnicalSkill(BaseModel):
 
 
 class Education(BaseModel):
+    id: str = Field(default_factory=new_id)
     institution: str = Field(description="College/school name")
     duration: str = Field(description="Duration, e.g. '2017 - 2021'")
     degree: str = Field(description="Degree or role, e.g. 'B.Tech, Computer Science'")
 
 
-class Project(BaseModel):
+class Project(_WithBullets):
+    id: str = Field(default_factory=new_id)
     title: str
     github: str | None = Field(default=None, description="Project github link")
     deployed: str | None = Field(default=None, description="Project deployed link")
     tech_stack: str = Field(
         default="", description="Comma-separated tech stack words",
     )
-    bullets: list[str] = Field(default_factory=list)
 
 
-class Achievement(BaseModel):
+class Achievement(_WithBullets):
+    id: str = Field(default_factory=new_id)
     title: str = Field(description="Achievement title")
-    bullets: list[str] = Field(default_factory=list)
 
 
 class ResumeData(BaseModel):

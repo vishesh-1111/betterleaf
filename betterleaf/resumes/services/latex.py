@@ -135,7 +135,7 @@ def _render_experience(items: list) -> str:
             lines.append("      \\resumeItemListStart")
             for bullet in bullets:
                 lines.append(
-                    f"        \\resumeItemPlain{{{_escape(bullet)}}}"
+                    f"        \\resumeItemPlain{{{_escape(bullet['text'])}}}"
                 )
             lines.append("      \\resumeItemListEnd")
     lines.append("  \\resumeSubHeadingListEnd")
@@ -172,7 +172,7 @@ def _render_projects(items: list) -> str:
             lines.append("          \\resumeItemListStart")
             for bullet in bullets:
                 lines.append(
-                    f"            \\resumeItemPlain{{{_escape(bullet)}}}"
+                    f"            \\resumeItemPlain{{{_escape(bullet['text'])}}}"
                 )
             lines.append("          \\resumeItemListEnd")
     lines.append("  \\resumeSubHeadingListEnd")
@@ -208,7 +208,7 @@ def _render_achievements(items: list) -> str:
             lines.append("      \\resumeItemListStart")
             for bullet in bullets:
                 lines.append(
-                    f"        \\resumeItemPlain{{{_escape(bullet)}}}"
+                    f"        \\resumeItemPlain{{{_escape(bullet['text'])}}}"
                 )
             lines.append("      \\resumeItemListEnd")
     lines.append("  \\resumeSubHeadingListEnd")
