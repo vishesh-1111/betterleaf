@@ -100,3 +100,39 @@ class Compilation(models.Model):
 
     def __str__(self) -> str:
         return f"Compilation {self.id} [{self.status}]"
+
+
+class TailorRequest(models.Model):
+    class Status(models.TextChoices):
+        ANALYSING = "analysing", "Analysing"
+        READY = "ready", "Ready"
+        FAILED = "failed", "Failed"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    workspace = models.ForeignKey(
+        Workspace, on_delete=models.CASCADE, related_name="tailor_requests",
+    )
+    master_resume = models.ForeignKey(
+        MasterResume, on_delete=models.CASCADE, related_name="tailor_requests",
+    )
+    job_text = models.TextField()
+    status = models.CharField(
+        max_length=20, choices=Status.choices, default=Status.ANALYSING,
+    )
+    # Checked AI answer: requirements (with evidence) and gap questions.
+    result = models.JSONField(blank=True, default=dict)
+    resume = models.OneToOneField(
+        Resume,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="tailor_request",
+    )
+    # Set when the request succeeds; the free limit will count these later.
+    counted = models.BooleanField(default=False)
+    error = models.TextField(blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self) -> str:
+        return f"TailorRequest {self.id} [{self.status}]"

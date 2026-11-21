@@ -3,8 +3,10 @@ import io
 
 from celery.result import AsyncResult
 from django.core.exceptions import ObjectDoesNotExist
+from django.db import transaction
 from django.http import FileResponse
 from django.middleware.csrf import get_token
+from rest_framework import mixins
 from rest_framework import status
 from rest_framework import viewsets
 from rest_framework.exceptions import NotFound
@@ -19,14 +21,18 @@ from betterleaf.resumes.auth import set_workspace_cookie
 from betterleaf.resumes.catalog import TEMPLATE_CATALOG
 from betterleaf.resumes.models import Compilation
 from betterleaf.resumes.models import Resume
+from betterleaf.resumes.models import TailorRequest
 from betterleaf.resumes.permissions import HasWorkspace
 from betterleaf.resumes.serializers import CompilationListSerializer
 from betterleaf.resumes.serializers import CompilationSerializer
 from betterleaf.resumes.serializers import PdfUploadSerializer
 from betterleaf.resumes.serializers import ResumeListSerializer
 from betterleaf.resumes.serializers import ResumeSerializer
+from betterleaf.resumes.serializers import TailorRequestCreateSerializer
+from betterleaf.resumes.serializers import TailorRequestSerializer
 from betterleaf.resumes.serializers import TemplateSerializer
 from betterleaf.resumes.services.compiler import run_compilation
+from betterleaf.resumes.tasks import analyse_job
 from betterleaf.resumes.tasks import parse_and_create_master
 
 
@@ -229,3 +235,40 @@ class CompilationViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         return Compilation.objects.filter(resume__workspace=self.request.workspace)
+
+
+class TailorRequestViewSet(
+    mixins.CreateModelMixin,
+    mixins.RetrieveModelMixin,
+    viewsets.GenericViewSet,
+):
+    """Start a tailoring run for a job description and poll for the result."""
+
+    permission_classes = [HasWorkspace]
+    serializer_class = TailorRequestSerializer
+
+    def get_queryset(self):
+        return TailorRequest.objects.filter(workspace=self.request.workspace)
+
+    def create(self, request, *args, **kwargs):
+        body = TailorRequestCreateSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+
+        try:
+            master = request.workspace.master_resume
+        except ObjectDoesNotExist:
+            return Response(
+                {"detail": "Upload a resume before tailoring."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        tailor = TailorRequest.objects.create(
+            workspace=request.workspace,
+            master_resume=master,
+            job_text=body.validated_data["job_text"],
+        )
+        transaction.on_commit(lambda: analyse_job.delay(str(tailor.id)))
+        return Response(
+            {"id": str(tailor.id), "status": tailor.status},
+            status=status.HTTP_202_ACCEPTED,
+        )

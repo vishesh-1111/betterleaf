@@ -4,6 +4,9 @@ from betterleaf.resumes.catalog import TEMPLATE_CATALOG
 from betterleaf.resumes.models import Compilation
 from betterleaf.resumes.models import MasterResume
 from betterleaf.resumes.models import Resume
+from betterleaf.resumes.models import TailorRequest
+from betterleaf.resumes.services.tailor.schemas import Requirement
+from betterleaf.resumes.services.tailor.scores import score_requirements
 
 
 MAX_PDF_UPLOAD_BYTES = 10 * 1024 * 1024
@@ -94,3 +97,29 @@ class CompilationListSerializer(serializers.ModelSerializer):
 class CompilationSerializer(CompilationListSerializer):
     class Meta(CompilationListSerializer.Meta):
         fields = [*CompilationListSerializer.Meta.fields, "pdf_base64"]
+
+
+class TailorRequestCreateSerializer(serializers.Serializer):
+    job_text = serializers.CharField(trim_whitespace=True)
+
+
+class TailorRequestSerializer(serializers.ModelSerializer):
+    """Poll shape: just id/status until ready, then the coverage report."""
+
+    class Meta:
+        model = TailorRequest
+        fields = ["id", "status"]
+
+    def to_representation(self, instance):
+        body = super().to_representation(instance)
+        if instance.status == TailorRequest.Status.FAILED:
+            body["error"] = instance.error
+        elif instance.status == TailorRequest.Status.READY:
+            requirements = instance.result.get("requirements", [])
+            body["resume_id"] = str(instance.resume_id) if instance.resume_id else None
+            body["scores"] = score_requirements(
+                [Requirement.model_validate(r) for r in requirements],
+            )
+            body["requirements"] = requirements
+            body["gap_questions"] = instance.result.get("gap_questions", [])
+        return body

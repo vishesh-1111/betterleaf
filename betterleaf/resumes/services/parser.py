@@ -6,16 +6,12 @@ Uses an LLM (DeepSeek) in JSON mode to map Markdown extracted from a PDF
 it.
 """
 
-import json
-
-import httpx
-from django.conf import settings
 from pydantic import ValidationError
 
+from betterleaf.resumes.services.llm import LLMError
+from betterleaf.resumes.services.llm import post_deepseek_chat
 from betterleaf.resumes.services.schemas import ResumeData
 from betterleaf.resumes.services.schemas import SECTION_KEYS
-
-_HTTP_OK = 200
 
 _SYSTEM_PROMPT = """You convert resume Markdown into structured JSON.
 
@@ -51,59 +47,16 @@ class ResumeParseError(Exception):
     """Raised when the LLM cannot produce a valid structured resume."""
 
 
-def _build_messages(markdown: str) -> list[dict]:
-    return [
-        {"role": "system", "content": _SYSTEM_PROMPT},
-        {"role": "user", "content": markdown},
-    ]
-
-
 def _parse_markdown(markdown: str) -> ResumeData:
-    """Call DeepSeek in JSON mode and validate the output.
+    """Ask DeepSeek to structure the resume Markdown and validate the output.
 
-    Raises :class:`ResumeParseError` on transport failure, unexpected status,
-    or when the returned JSON does not satisfy :class:`ResumeData`.
+    Raises :class:`ResumeParseError` on LLM failure or when the returned JSON
+    does not satisfy :class:`ResumeData`.
     """
-    if not settings.DEEPSEEK_API_KEY:
-        msg = "DeepSeek is not configured"
-        raise ResumeParseError(msg)
-
-    body = {
-        "model": settings.DEEPSEEK_MODEL,
-        "messages": _build_messages(markdown),
-        "response_format": {"type": "json_object"},
-        # Cap output — a structured resume needs nowhere near DeepSeek's default
-        # max; without this the model pads completion tokens, adding latency.
-        "max_tokens": 2000,
-        # Cache the fixed system prompt so it isn't re-processed each request.
-        "stream": False,
-    }
-    headers = {
-        "Authorization": f"Bearer {settings.DEEPSEEK_API_KEY}",
-        "Content-Type": "application/json",
-    }
-
     try:
-        response = httpx.post(
-            settings.DEEPSEEK_API_URL,
-            headers=headers,
-            json=body,
-            timeout=httpx.Timeout(300.0),
-        )
-    except httpx.HTTPError as exc:
-        msg = f"DeepSeek request failed: {exc}"
-        raise ResumeParseError(msg) from exc
-
-    if response.status_code != _HTTP_OK:
-        msg = f"DeepSeek error {response.status_code}: {response.text[:500]}"
-        raise ResumeParseError(msg)
-
-    try:
-        content = response.json()["choices"][0]["message"]["content"]
-        raw = json.loads(content)
-    except (KeyError, IndexError, TypeError, json.JSONDecodeError) as exc:
-        msg = "DeepSeek returned malformed output"
-        raise ResumeParseError(msg) from exc
+        raw = post_deepseek_chat(_SYSTEM_PROMPT, markdown, max_tokens=2000)
+    except LLMError as exc:
+        raise ResumeParseError(str(exc)) from exc
 
     # Capture the LLM's section ordering (JSON key order) so rendering can
     # follow it instead of a fixed template order.
