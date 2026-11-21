@@ -1,6 +1,7 @@
 from django.contrib import admin
 
 from betterleaf.resumes.models import Compilation
+from betterleaf.resumes.models import MasterResume
 from betterleaf.resumes.models import Resume
 from betterleaf.resumes.models import Workspace
 
@@ -12,11 +13,18 @@ class WorkspaceAdmin(admin.ModelAdmin):
     raw_id_fields = ("user",)
 
 
+@admin.register(MasterResume)
+class MasterResumeAdmin(admin.ModelAdmin):
+    list_display = ("title", "workspace", "parsed_from_file", "updated_at")
+    search_fields = ("title", "parsed_from_file")
+    raw_id_fields = ("workspace",)
+
+
 @admin.register(Resume)
 class ResumeAdmin(admin.ModelAdmin):
-    list_display = ("title", "slug", "template", "workspace", "updated_at")
+    list_display = ("title", "slug", "template", "workspace", "master_resume", "updated_at")
     search_fields = ("title", "slug")
-    raw_id_fields = ("workspace",)
+    raw_id_fields = ("workspace", "master_resume")
 
 
 @admin.register(Compilation)
