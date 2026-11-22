@@ -26,42 +26,45 @@
   min-height: 0;
 }
 
-/* ---- tab bar ---------------------------------------------------- */
+/* ---- tab bar: folder tabs, the active tab fuses with the page ---- */
 .bl-ws .re-tabbar {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
   gap: 12px;
-  padding: 8px 14px;
-  background: var(--panel);
+  padding: 8px 12px 0;
+  background: color-mix(in srgb, var(--ink) 7%, var(--surface));
   border-bottom: 1.5px solid var(--ink);
 }
 .bl-ws .re-tabs {
   display: inline-flex;
-  padding: 2px;
-  border: 1.5px solid var(--ink);
-  border-radius: 999px;
+  gap: 4px;
 }
-.bl-ws .re-tab {
-  font: 600 0.85rem/1 var(--body);
-  padding: 7px 16px;
-  border-radius: 999px;
-  border: 0;
+.bl-ws .re-tabbar .re-tabs .re-tab {
+  font: 600 0.88rem/1 var(--body);
+  padding: 9px 20px 10px;
+  border: 1.5px solid transparent;
+  border-bottom: 0;
+  border-radius: 10px 10px 0 0;
+  margin-bottom: -1.5px;
   background: transparent;
-  color: var(--ink);
+  color: var(--muted);
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
 }
-.bl-ws .re-tab:hover {
+.bl-ws .re-tabbar .re-tabs .re-tab:hover {
   background: var(--re-hover);
+  color: var(--ink);
 }
-.bl-ws .re-tab[aria-selected="true"] {
-  background: var(--spruce);
-  color: var(--chalk);
+.bl-ws .re-tabbar .re-tabs .re-tab[aria-selected="true"] {
+  background: var(--surface);
+  color: var(--ink);
+  border-color: var(--ink);
+  padding-bottom: 11px;
 }
-.dark .bl-ws .re-tab[aria-selected="true"] {
-  background: var(--leaf);
-  color: #fff;
+.bl-ws .re-tabbar .re-status {
+  align-self: center;
+  padding-bottom: 6px;
 }
 .bl-ws .re-status {
   display: inline-flex;
