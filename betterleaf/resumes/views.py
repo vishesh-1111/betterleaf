@@ -1,11 +1,13 @@
 import base64
 import io
+from datetime import timedelta
 
 from celery.result import AsyncResult
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.http import FileResponse
 from django.middleware.csrf import get_token
+from django.utils import timezone
 from rest_framework import mixins
 from rest_framework import status
 from rest_framework import viewsets
@@ -45,6 +47,8 @@ from betterleaf.resumes.tasks import analyse_job
 from betterleaf.resumes.tasks import draft_gap_proposals
 from betterleaf.resumes.tasks import parse_and_create_master
 
+# A job older than this that is still "running" is treated as stuck, not active.
+ACTIVE_TAILOR_WINDOW = timedelta(minutes=10)
 
 class CsrfCookieAPIView(APIView):
     """Base for the SPA's session-bootstrap endpoints (reachable by guests).
@@ -157,13 +161,26 @@ class WorkspaceView(CsrfCookieAPIView):
     def get(self, request):
         workspace = request.workspace
         resumes = ResumeListSerializer(
-            Resume.objects.filter(workspace=workspace), many=True,
+            Resume.objects.filter(workspace=workspace).select_related("tailor_request"),
+            many=True,
         ).data
+        # A job still running (no finished resume to hang it on), so the Review
+        # tab can pick it up after a reload. Old stuck rows are ignored.
+        running = (
+            TailorRequest.objects.filter(
+                workspace=workspace,
+                status__in=[TailorRequest.Status.ANALYSING, TailorRequest.Status.DRAFTING],
+                updated_at__gte=timezone.now() - ACTIVE_TAILOR_WINDOW,
+            )
+            .order_by("-created_at")
+            .first()
+        )
         return Response(
             {
                 "workspace_id": str(workspace.id),
                 "anonymous": workspace.user_id is None,
                 "resumes": resumes,
+                "active_tailor_request_id": str(running.id) if running else None,
             },
         )
 
@@ -179,7 +196,9 @@ class ResumeViewSet(viewsets.ModelViewSet):
     permission_classes = [HasWorkspace]
 
     def get_queryset(self):
-        return Resume.objects.filter(workspace=self.request.workspace)
+        return Resume.objects.filter(workspace=self.request.workspace).select_related(
+            "tailor_request",
+        )
 
     def get_serializer_class(self):
         if self.action == "list":

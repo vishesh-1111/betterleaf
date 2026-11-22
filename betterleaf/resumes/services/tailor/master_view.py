@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from dataclasses import field
 
 from betterleaf.resumes.services.schemas import ResumeData
+from betterleaf.resumes.services.tailor.master_update import BULLET_SECTIONS
 
 
 def add_missing_ids(master_data: dict) -> dict:
@@ -92,6 +93,24 @@ def render_master_for_prompt(master_data: dict) -> str:
     if summary:
         out.insert(0, f"## summary\n{summary}")
     return "\n".join(out)
+
+
+def answer_targets(master_data: dict) -> list[dict]:
+    """Where a gap answer can go: every job, project and achievement.
+
+    Each is ``{"source_type", "item_id", "label"}``, the exact shape an answer
+    sends back, so the screen can offer them in a picker.
+    """
+    return [
+        {
+            "source_type": section,
+            "item_id": item["id"],
+            "label": _SECTIONS[section][1](item),
+        }
+        for section in BULLET_SECTIONS
+        for item in master_data.get(section) or []
+        if item.get("id")
+    ]
 
 
 def render_item_for_prompt(master_data: dict, section: str, item_id: str) -> str:

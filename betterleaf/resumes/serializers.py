@@ -1,3 +1,4 @@
+from django.core.exceptions import ObjectDoesNotExist
 from rest_framework import serializers
 
 from betterleaf.resumes.catalog import TEMPLATE_CATALOG
@@ -7,6 +8,7 @@ from betterleaf.resumes.models import Resume
 from betterleaf.resumes.models import TailorRequest
 from betterleaf.resumes.services.schemas import ResumeData
 from betterleaf.resumes.services.tailor.master_update import BULLET_SECTIONS
+from betterleaf.resumes.services.tailor.master_view import answer_targets
 from betterleaf.resumes.services.tailor.schemas import Requirement
 from betterleaf.resumes.services.tailor.scores import score_requirements
 
@@ -55,7 +57,23 @@ class MasterResumeSerializer(serializers.ModelSerializer):
         ]
 
 
-class ResumeSerializer(serializers.ModelSerializer):
+class TailorRequestIdMixin(serializers.Serializer):
+    """Adds ``tailor_request_id``: the job this resume was tailored for, if any.
+
+    Lets the Review tab find its report again after a reload. Querysets should
+    ``select_related("tailor_request")`` to avoid one query per resume.
+    """
+
+    tailor_request_id = serializers.SerializerMethodField()
+
+    def get_tailor_request_id(self, resume):
+        try:
+            return str(resume.tailor_request.id)
+        except ObjectDoesNotExist:
+            return None
+
+
+class ResumeSerializer(TailorRequestIdMixin, serializers.ModelSerializer):
     class Meta:
         model = Resume
         fields = [
@@ -65,6 +83,7 @@ class ResumeSerializer(serializers.ModelSerializer):
             "template",
             "main_tex",
             "structured_data",
+            "tailor_request_id",
             "updated_at",
         ]
         read_only_fields = [
@@ -88,7 +107,7 @@ class ResumeSerializer(serializers.ModelSerializer):
         return value
 
 
-class ResumeListSerializer(serializers.ModelSerializer):
+class ResumeListSerializer(TailorRequestIdMixin, serializers.ModelSerializer):
     class Meta:
         model = Resume
         fields = [
@@ -98,6 +117,7 @@ class ResumeListSerializer(serializers.ModelSerializer):
             "template",
             "main_tex",
             "structured_data",
+            "tailor_request_id",
             "updated_at",
         ]
         read_only_fields = ["id", "slug", "updated_at"]
@@ -149,7 +169,7 @@ class TailorRequestSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = TailorRequest
-        fields = ["id", "status", "kind"]
+        fields = ["id", "status", "kind", "job_text"]
 
     def to_representation(self, instance):
         body = super().to_representation(instance)
@@ -165,6 +185,9 @@ class TailorRequestSerializer(serializers.ModelSerializer):
             )
             body["requirements"] = requirements
             body["gap_questions"] = instance.result.get("gap_questions", [])
+            body["answer_targets"] = answer_targets(
+                instance.master_resume.structured_data,
+            )
             body["proposals"] = instance.proposals
             if instance.status == Status.READY and instance.error:
                 body["error"] = instance.error

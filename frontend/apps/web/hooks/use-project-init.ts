@@ -4,6 +4,8 @@ import { useEffect } from "react";
 import { useDocumentStore } from "@/stores/document-store";
 import { createResume, getWorkspace, resumeToFile } from "@/lib/api";
 import { DEFAULT_TEX_CONTENT } from "@/lib/default-document";
+import { hasResumeData } from "@/lib/resume-data";
+import { resumeRunningRequest } from "@/stores/tailor-store";
 
 const DEFAULT_IMAGE_FILE = {
   name: "hand-write.jpg",
@@ -59,6 +61,23 @@ export function useProjectInit() {
         const firstTex = state.files.find((f) => f.type === "tex");
         if (firstTex) {
           state.setActiveFile(firstTex.id);
+        }
+      }
+
+      // A tailor job was still running when the page closed: show it again
+      // on the original resume's Review tab and keep waiting for it.
+      if (workspace.active_tailor_request_id) {
+        const original = useDocumentStore
+          .getState()
+          .files.find(
+            (f) =>
+              f.type === "tex" &&
+              f.resumeId &&
+              !f.tailorRequestId &&
+              hasResumeData(f.structuredData),
+          );
+        if (original) {
+          resumeRunningRequest(original.id, workspace.active_tailor_request_id);
         }
       }
 

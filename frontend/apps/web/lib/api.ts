@@ -11,16 +11,30 @@ export interface ResumeDto {
   main_tex: string;
   /** Parsed resume data; `{}` for resumes that were never parsed. */
   structured_data: Partial<ResumeData>;
+  /** The job this resume was tailored for; null for an original resume. */
+  tailor_request_id?: string | null;
   updated_at: string;
 }
 
 export class ApiError extends Error {
   readonly status: number;
+  /** The server's plain `detail` message, when it sent one. */
+  readonly detail: string | null;
 
   constructor(path: string, status: number, body: string) {
     super(`API ${path} failed (${status}): ${body.slice(0, 200)}`);
     this.name = "ApiError";
     this.status = status;
+    this.detail = parseDetail(body);
+  }
+}
+
+function parseDetail(body: string): string | null {
+  try {
+    const detail = (JSON.parse(body) as { detail?: unknown }).detail;
+    return typeof detail === "string" ? detail : null;
+  } catch {
+    return null;
   }
 }
 
@@ -68,6 +82,8 @@ export interface WorkspaceDto {
   workspace_id: string;
   anonymous: boolean;
   resumes: ResumeDto[];
+  /** A tailor job still running, so a reload can pick it back up. */
+  active_tailor_request_id?: string | null;
 }
 
 /** Fetch the workspace (creating + setting the cookie if none exists) and all
@@ -165,6 +181,7 @@ export function resumeToFile(resume: ResumeDto): ProjectFile {
     structuredData: resume.structured_data,
     dataStatus: "idle",
     resumeId: resume.id,
+    tailorRequestId: resume.tailor_request_id ?? null,
   };
 }
 
@@ -221,4 +238,125 @@ export async function getUploadStatus(
     `upload-pdf/${encodeURIComponent(taskId)}/status/`,
     { signal },
   );
+}
+
+/* ------------------------------------------------------------ tailoring */
+
+export type TailorStatus = "analysing" | "ready" | "drafting" | "failed";
+export type Coverage = "met" | "partial" | "not_met";
+export type Importance = "must_have" | "nice_to_have";
+/** Sections a new bullet can be added to. */
+export type SourceType = "experience" | "projects" | "achievements";
+
+export interface TailorRequirement {
+  id: string;
+  text: string;
+  importance: Importance;
+  priority: number;
+  status: Coverage;
+  evidence: { source_id: string; quote: string }[];
+  rationale: string;
+}
+
+export interface GapQuestion {
+  requirement_id: string;
+  question: string;
+}
+
+/** A job, project or achievement a gap answer can be attached to. */
+export interface AnswerTarget {
+  source_type: SourceType;
+  item_id: string;
+  label: string;
+}
+
+export interface GapProposal {
+  id: string;
+  requirement_id: string;
+  requirement_text: string;
+  source_type: SourceType;
+  item_id: string;
+  change: "add_bullet" | "no_change";
+  bullet: string;
+  skill: string;
+  skill_group_id: string;
+  reason: string;
+}
+
+export interface TailorScores {
+  must_have: { earned: number; total: number };
+  nice_to_have: { earned: number; total: number };
+}
+
+/** What polling `tailor-requests/{id}/` returns. The report fields are only
+ * present once the request has been analysed (`ready` or `drafting`). */
+export interface TailorRequestDto {
+  id: string;
+  status: TailorStatus;
+  kind: "initial" | "gap_followup";
+  job_text: string;
+  parent_id: string | null;
+  error?: string;
+  resume_id?: string | null;
+  scores?: TailorScores;
+  requirements?: TailorRequirement[];
+  gap_questions?: GapQuestion[];
+  answer_targets?: AnswerTarget[];
+  proposals?: GapProposal[];
+}
+
+export interface GapAnswerInput {
+  requirement_id: string;
+  source_type: SourceType;
+  item_id: string;
+  text: string;
+}
+
+export interface AcceptedProposalInput {
+  id: string;
+  bullet: string;
+  skill: string;
+  skill_group_id: string;
+}
+
+export interface TailorStarted {
+  id: string;
+  status: TailorStatus;
+}
+
+export async function startTailorRequest(
+  jobText: string,
+): Promise<TailorStarted> {
+  return request<TailorStarted>("tailor-requests/", {
+    method: "POST",
+    body: JSON.stringify({ job_text: jobText }),
+  });
+}
+
+export async function getTailorRequest(
+  id: string,
+  signal?: AbortSignal,
+): Promise<TailorRequestDto> {
+  return request<TailorRequestDto>(`tailor-requests/${id}/`, { signal });
+}
+
+export async function submitGapAnswers(
+  id: string,
+  answers: GapAnswerInput[],
+): Promise<TailorStarted> {
+  return request<TailorStarted>(`tailor-requests/${id}/answers/`, {
+    method: "POST",
+    body: JSON.stringify({ answers }),
+  });
+}
+
+/** Save the accepted bullets into the master and start the follow-up request. */
+export async function confirmProposals(
+  id: string,
+  accepted: AcceptedProposalInput[],
+): Promise<TailorStarted> {
+  return request<TailorStarted>(`tailor-requests/${id}/confirm/`, {
+    method: "POST",
+    body: JSON.stringify({ accepted }),
+  });
 }

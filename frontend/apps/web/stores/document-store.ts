@@ -15,6 +15,8 @@ export interface ProjectFile {
   content?: string;
   dataUrl?: string;
   resumeId?: string;
+  /** The tailor job this resume came from; null for an original resume. */
+  tailorRequestId?: string | null;
   /** Last LaTeX known to be on the server. */
   savedTex?: string;
   /** Raw resume data from the server (`{}` when never parsed). */

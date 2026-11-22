@@ -1,0 +1,305 @@
+/* ------------------------------------------------------------------ *
+ * Review tab (middle pane). Same tokens and printed-page feel as the
+ * resume editor. Sun yellow stays reserved for AI-changed content.
+ * ------------------------------------------------------------------ */
+
+.bl-ws .rv-column {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 24px 24px 72px;
+}
+
+.bl-ws .rv-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+/* ---- sections ---------------------------------------------------- */
+.bl-ws .rv-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-top: 1.5px solid var(--ink);
+  padding-top: 12px;
+}
+.bl-ws .rv-column > .rv-section:first-child,
+.bl-ws .rv-jobbar + .rv-section {
+  border-top: 0;
+  padding-top: 0;
+}
+.bl-ws .rv-h {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font: 800 1.35rem/1.1 var(--display);
+  letter-spacing: -0.025em;
+}
+.bl-ws .rv-count {
+  font: 500 0.8rem/1 var(--body);
+  color: var(--muted);
+}
+.bl-ws .rv-hint,
+.bl-ws .rv-muted {
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+.bl-ws .rv-error {
+  color: var(--re-danger);
+  font-size: 0.88rem;
+}
+
+/* ---- paste box --------------------------------------------------- */
+.bl-ws .rv-job {
+  min-height: 260px;
+  max-height: 60vh;
+  resize: vertical;
+  padding: 12px 14px;
+  line-height: 1.5;
+  background: var(--panel);
+  border: 1.5px solid var(--ink);
+  border-radius: 12px;
+}
+.bl-ws .rv-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+.bl-ws .rv-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 22px;
+  border: 1.5px solid var(--leaf);
+  border-radius: 999px;
+  background: var(--leaf);
+  color: #fff;
+  font: 700 0.92rem/1 var(--body);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+}
+.bl-ws .rv-primary:hover:not(:disabled) {
+  background: var(--spruce);
+  border-color: var(--spruce);
+}
+.bl-ws .rv-primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.bl-ws .rv-link {
+  border: 0;
+  background: transparent;
+  padding: 4px 2px;
+  color: var(--leaf);
+  font: 600 0.85rem/1.2 var(--body);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.bl-ws .rv-link:hover {
+  color: var(--ink);
+}
+
+/* ---- job bar & working state ------------------------------------- */
+.bl-ws .rv-jobbar {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  padding: 10px 14px;
+  background: var(--panel);
+  border: 1.5px solid var(--ink);
+  border-radius: 12px;
+}
+.bl-ws .rv-jobbar-label {
+  font: 700 0.72rem/1 var(--body);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.bl-ws .rv-jobbar-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.bl-ws .rv-working {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  color: var(--muted);
+}
+
+/* ---- scores ------------------------------------------------------ */
+.bl-ws .rv-scores {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.bl-ws .rv-score {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.bl-ws .rv-score-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.bl-ws .rv-score-label {
+  font-weight: 600;
+}
+.bl-ws .rv-score-num {
+  font: 800 1.25rem/1 var(--display);
+  font-variant-numeric: tabular-nums;
+}
+.bl-ws .rv-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+.bl-ws .rv-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--leaf);
+  transition: width 0.4s ease;
+}
+
+/* ---- requirement & question lists -------------------------------- */
+.bl-ws .rv-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.bl-ws .rv-req {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+.bl-ws .rv-req-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.bl-ws .rv-req-text {
+  font-weight: 600;
+}
+.bl-ws .rv-tag {
+  flex: none;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--leaf) 14%, transparent);
+  font: 600 0.72rem/1 var(--body);
+}
+.bl-ws .rv-tag-must {
+  background: var(--ink);
+  color: var(--surface);
+}
+.bl-ws .rv-card .rv-tag {
+  align-self: flex-start;
+}
+.bl-ws .rv-fold {
+  border-top: 1.5px solid var(--ink);
+  padding-top: 12px;
+}
+.bl-ws .rv-fold > summary {
+  cursor: pointer;
+  width: fit-content;
+  font: 700 0.95rem/1.2 var(--body);
+}
+.bl-ws .rv-fold > .rv-list {
+  margin-top: 10px;
+}
+.bl-ws .rv-quotes {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.bl-ws .rv-req-why {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.bl-ws .rv-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  background: var(--panel);
+  border: 1.5px solid var(--ink);
+  border-radius: 14px;
+}
+.bl-ws .rv-card-quiet,
+.bl-ws .rv-card-off {
+  border-color: var(--line);
+}
+.bl-ws .rv-card-off .re-textarea {
+  opacity: 0.55;
+}
+.bl-ws .rv-q-req {
+  font: 700 0.72rem/1.3 var(--body);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.bl-ws .rv-q {
+  font-weight: 600;
+  line-height: 1.4;
+}
+.bl-ws .rv-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.bl-ws .rv-select {
+  width: 100%;
+}
+.bl-ws .rv-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+.bl-ws .rv-confirm {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  justify-content: flex-end;
+  padding: 12px 0;
+  background: linear-gradient(transparent, var(--surface) 35%);
+}
+
+@container (max-width: 520px) {
+  .bl-ws .rv-column {
+    padding: 16px 14px 72px;
+  }
+  .bl-ws .rv-scores {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .bl-ws .rv-confirm .rv-primary {
+    width: 100%;
+  }
+}

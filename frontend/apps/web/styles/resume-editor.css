@@ -653,3 +653,124 @@
     animation: none !important;
   }
 }
+
+/* ---- Tailor / Review tab: a leaf-filled folder tab, sheen while work is pending ---- */
+.bl-ws .re-tabbar .re-tabs .re-tab.re-tab-action {
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 16px 10px 14px;
+  background: var(--leaf);
+  border-color: var(--leaf);
+  color: #fff;
+  font-weight: 700;
+}
+.bl-ws .re-tabbar .re-tabs .re-tab.re-tab-action:hover {
+  background: color-mix(in srgb, var(--leaf) 80%, var(--spruce));
+  color: #fff;
+}
+.bl-ws .re-tabbar .re-tabs .re-tab.re-tab-action[data-state="idle"] {
+  background: color-mix(in srgb, var(--leaf) 24%, transparent);
+  border-color: color-mix(in srgb, var(--leaf-bright) 40%, transparent);
+  color: var(--leaf-bright);
+}
+.bl-ws .re-tabbar .re-tabs .re-tab.re-tab-action[data-state="idle"]:hover {
+  background: color-mix(in srgb, var(--leaf) 40%, transparent);
+}
+.bl-ws .re-tabbar .re-tabs .re-tab.re-tab-action[aria-selected="true"] {
+  background: var(--surface);
+  border-color: var(--ink);
+  color: #fff;
+  padding-bottom: 11px;
+}
+.bl-ws .re-tabbar .re-tabs .re-tab.re-tab-action[aria-selected="true"][data-state="idle"] {
+  color: var(--leaf-bright);
+}
+.bl-ws .re-tab-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--chalk);
+  color: var(--spruce);
+  font: 700 0.72rem/1 var(--body);
+  font-variant-numeric: tabular-nums;
+}
+/* Idle "Tailor": a leaf-green rim with a comet of light travelling the whole route. */
+@property --re-tab-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+.bl-ws .re-tabbar .re-tabs .re-tab.re-tab-action[data-state="idle"] {
+  overflow: visible;
+  border-color: transparent;
+}
+.bl-ws .re-tabbar .re-tabs .re-tab.re-tab-action[data-state="idle"][aria-selected="true"] {
+  background: var(--surface);
+}
+.bl-ws .re-tab-action[data-state="idle"]::after {
+  content: "";
+  position: absolute;
+  inset: -1.5px;
+  border-radius: inherit;
+  pointer-events: none;
+  clip-path: inset(-14px -14px 3px -14px);
+}
+/* Rim: a dim leaf hairline, with a bright comet riding over it. */
+.bl-ws .re-tab-action[data-state="idle"]::after {
+  padding: 2px;
+  background:
+    conic-gradient(
+      from var(--re-tab-angle),
+      transparent 0 55%,
+      var(--leaf) 78%,
+      var(--leaf-bright) 96%,
+      var(--chalk) 100%
+    ),
+    linear-gradient(
+      color-mix(in srgb, var(--leaf-bright) 45%, transparent),
+      color-mix(in srgb, var(--leaf-bright) 45%, transparent)
+    );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box exclude,
+    linear-gradient(#000 0 0);
+}
+@keyframes re-tab-orbit {
+  to { --re-tab-angle: 360deg; }
+}
+
+/* Pending "Review": leaf slab with a sheen sweep. */
+.bl-ws .re-tab-action[data-state="pending"]::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -40%;
+  width: 24%;
+  background: rgb(255 255 255 / 0.3);
+  transform: skewX(-20deg);
+  pointer-events: none;
+  display: none;
+}
+@keyframes re-tab-sheen {
+  0% { transform: translateX(0) skewX(-20deg); }
+  36%, 100% { transform: translateX(700%) skewX(-20deg); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .bl-ws .re-tab-action[data-state="idle"]::after {
+    animation: re-tab-orbit 4.2s linear infinite;
+  }
+  .bl-ws .re-tab-action[data-state="pending"]:not([aria-selected="true"])::after {
+    display: block;
+    animation: re-tab-sheen 4.4s cubic-bezier(0.2, 0.7, 0.2, 1) infinite;
+  }
+}
