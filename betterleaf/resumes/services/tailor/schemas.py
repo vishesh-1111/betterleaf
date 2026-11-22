@@ -95,3 +95,26 @@ class TailoringAnalysis(BaseModel):
     requirements: list[Requirement]
     gap_questions: list[GapQuestion] = Field(default_factory=list)
     selection: ResumeSelection = Field(default_factory=ResumeSelection)
+
+
+GapChange = Literal["add_bullet", "no_change"]
+
+
+class GapProposal(BaseModel):
+    """One AI-drafted change for one answered gap."""
+
+    requirement_id: str
+    change: GapChange
+    bullet: str = ""
+    skill: str = ""
+    skill_group_id: str = ""
+    reason: str = ""
+
+    @field_validator("skill_group_id", mode="before")
+    @classmethod
+    def _strip_tag(cls, value):
+        return strip_id_tag(value)
+
+
+class GapProposals(BaseModel):
+    proposals: list[GapProposal]

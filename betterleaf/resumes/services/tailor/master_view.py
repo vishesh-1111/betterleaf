@@ -92,3 +92,20 @@ def render_master_for_prompt(master_data: dict) -> str:
     if summary:
         out.insert(0, f"## summary\n{summary}")
     return "\n".join(out)
+
+
+def render_item_for_prompt(master_data: dict, section: str, item_id: str) -> str:
+    """One master item with its bullets as plain text, for the gap-answers prompt."""
+    tag, describe = _SECTIONS[section]
+    item = next(i for i in master_data.get(section) or [] if i["id"] == item_id)
+    lines = [f"[{tag}:{item['id']}] {describe(item)}"]
+    lines.extend(f"  - {b['text']}" for b in item.get("bullets") or [])
+    return "\n".join(lines)
+
+
+def render_skill_groups_for_prompt(master_data: dict) -> str:
+    """The master's skill groups, one per line, e.g. ``[skill:ab12] Tools: Git``."""
+    return "\n".join(
+        f"[skill:{g['id']}] {_skill_line(g)}"
+        for g in master_data.get("technical_skills") or []
+    )

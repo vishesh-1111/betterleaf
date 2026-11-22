@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 _MAX_TOKENS = 4000
 _MAX_ATTEMPTS = 2  # first try plus one retry with the errors fed back
+MAX_SKILLS_PER_GROUP = 10
 
 
 class TailoringError(Exception):
@@ -99,19 +100,34 @@ def tidy_gap_questions(analysis: TailoringAnalysis) -> None:
     analysis.gap_questions = kept
 
 
-def analyse_job_fit(job_text: str, master_data: dict) -> TailoringAnalysis:
+def cap_skills(analysis: TailoringAnalysis) -> None:
+    """Keep each skill group to its first ``MAX_SKILLS_PER_GROUP`` (the AI's order)."""
+    for group in analysis.selection.technical_skills:
+        group.skills = group.skills[:MAX_SKILLS_PER_GROUP]
+
+
+def _render_handled_gaps(handled_gaps: list[dict]) -> str:
+    return "\n".join(f"- {g['requirement']} ({g['outcome']})" for g in handled_gaps)
+
+
+def analyse_job_fit(
+    job_text: str, master_data: dict, handled_gaps: list[dict] | None = None,
+) -> TailoringAnalysis:
     """Ask the LLM how well ``master_data`` covers ``job_text``, then check it.
 
     Retries once with the problems listed if the answer fails the checks.
     Raises :class:`TailoringError` when it still does not pass, and lets
     :class:`~betterleaf.resumes.services.llm.LLMUnavailableError` through so
-    the caller can retry on network trouble.
+    the caller can retry on network trouble. ``handled_gaps`` lists gaps the
+    user already answered or skipped, so they are not asked again.
     """
     system = load_prompt("tailor")
     user = (
         f"JOB DESCRIPTION\n{job_text}\n\n"
         f"MASTER RESUME\n{render_master_for_prompt(master_data)}"
     )
+    if handled_gaps:
+        user += f"\n\nALREADY HANDLED\n{_render_handled_gaps(handled_gaps)}"
 
     errors: list[str] = []
     for attempt in range(1, _MAX_ATTEMPTS + 1):
@@ -131,6 +147,7 @@ def analyse_job_fit(job_text: str, master_data: dict) -> TailoringAnalysis:
         errors = check_analysis(analysis, master_data)
         if not errors:
             tidy_gap_questions(analysis)
+            cap_skills(analysis)
             return analysis
         logger.warning("Tailoring answer rejected (attempt %d): %s", attempt, errors)
 

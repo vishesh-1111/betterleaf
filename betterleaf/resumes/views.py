@@ -20,11 +20,14 @@ from betterleaf.resumes.auth import get_or_create_workspace
 from betterleaf.resumes.auth import set_workspace_cookie
 from betterleaf.resumes.catalog import TEMPLATE_CATALOG
 from betterleaf.resumes.models import Compilation
+from betterleaf.resumes.models import MasterResume
 from betterleaf.resumes.models import Resume
 from betterleaf.resumes.models import TailorRequest
 from betterleaf.resumes.permissions import HasWorkspace
 from betterleaf.resumes.serializers import CompilationListSerializer
 from betterleaf.resumes.serializers import CompilationSerializer
+from betterleaf.resumes.serializers import ConfirmSerializer
+from betterleaf.resumes.serializers import GapAnswersSerializer
 from betterleaf.resumes.serializers import PdfUploadSerializer
 from betterleaf.resumes.serializers import ResumeListSerializer
 from betterleaf.resumes.serializers import ResumeSerializer
@@ -32,7 +35,13 @@ from betterleaf.resumes.serializers import TailorRequestCreateSerializer
 from betterleaf.resumes.serializers import TailorRequestSerializer
 from betterleaf.resumes.serializers import TemplateSerializer
 from betterleaf.resumes.services.compiler import run_compilation
+from betterleaf.resumes.services.tailor.gap_answers import GapAnswerError
+from betterleaf.resumes.services.tailor.gap_answers import handled_gaps_after
+from betterleaf.resumes.services.tailor.gap_answers import validate_answers
+from betterleaf.resumes.services.tailor.master_update import MasterUpdateError
+from betterleaf.resumes.services.tailor.master_update import apply_proposals
 from betterleaf.resumes.tasks import analyse_job
+from betterleaf.resumes.tasks import draft_gap_proposals
 from betterleaf.resumes.tasks import parse_and_create_master
 
 
@@ -270,5 +279,107 @@ class TailorRequestViewSet(
         transaction.on_commit(lambda: analyse_job.delay(str(tailor.id)))
         return Response(
             {"id": str(tailor.id), "status": tailor.status},
+            status=status.HTTP_202_ACCEPTED,
+        )
+
+    def _not_ready(self, tailor):
+        if tailor.status != TailorRequest.Status.READY:
+            return Response(
+                {"detail": "This request is not ready for answers yet."},
+                status=status.HTTP_409_CONFLICT,
+            )
+        return None
+
+    @action(detail=True, methods=["post"])
+    def answers(self, request, pk=None):
+        """Save the user's gap answers and queue the AI to draft bullets."""
+        tailor = self.get_object()
+        if (blocked := self._not_ready(tailor)) is not None:
+            return blocked
+        body = GapAnswersSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        answers = body.validated_data["answers"]
+        try:
+            validate_answers(
+                answers,
+                tailor.master_resume.structured_data,
+                tailor.result.get("gap_questions", []),
+            )
+        except GapAnswerError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        tailor.answers = answers
+        tailor.proposals = []
+        tailor.error = ""
+        tailor.status = TailorRequest.Status.DRAFTING
+        tailor.save(
+            update_fields=["answers", "proposals", "error", "status", "updated_at"],
+        )
+        transaction.on_commit(lambda: draft_gap_proposals.delay(str(tailor.id)))
+        return Response(
+            {"id": str(tailor.id), "status": tailor.status},
+            status=status.HTTP_202_ACCEPTED,
+        )
+
+    @action(detail=True, methods=["post"])
+    def confirm(self, request, pk=None):
+        """Save the accepted bullets into the master and tailor again."""
+        tailor = self.get_object()
+        if (blocked := self._not_ready(tailor)) is not None:
+            return blocked
+        body = ConfirmSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        accepted = body.validated_data["accepted"]
+        if not accepted:
+            return Response(
+                {"id": str(tailor.id), "status": tailor.status},
+                status=status.HTTP_200_OK,
+            )
+
+        proposals = {p["id"]: p for p in tailor.proposals}
+        entries = []
+        for item in accepted:
+            proposal = proposals.get(item["id"])
+            if proposal is None or proposal["change"] != "add_bullet":
+                return Response(
+                    {"detail": f"Unknown proposal {item['id']!r}."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            # Where the bullet goes comes from the stored proposal, not the client.
+            entries.append(
+                {
+                    "source_type": proposal["source_type"],
+                    "item_id": proposal["item_id"],
+                    "bullet": item["bullet"],
+                    "skill": item["skill"],
+                    "skill_group_id": item["skill_group_id"],
+                },
+            )
+
+        try:
+            with transaction.atomic():
+                master = MasterResume.objects.select_for_update().get(
+                    pk=tailor.master_resume_id,
+                )
+                master.structured_data = apply_proposals(
+                    master.structured_data, entries,
+                )
+                master.save(update_fields=["structured_data", "updated_at"])
+                followup = TailorRequest.objects.create(
+                    workspace=tailor.workspace,
+                    master_resume=master,
+                    job_text=tailor.job_text,
+                    parent=tailor,
+                    kind=TailorRequest.Kind.GAP_FOLLOWUP,
+                    handled_gaps=handled_gaps_after(
+                        tailor.handled_gaps, tailor.result, tailor.answers,
+                    ),
+                )
+        except MasterUpdateError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        transaction.on_commit(lambda: analyse_job.delay(str(followup.id)))
+        return Response(
+            {"id": str(followup.id), "status": followup.status},
             status=status.HTTP_202_ACCEPTED,
         )

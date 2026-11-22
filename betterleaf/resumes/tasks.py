@@ -11,6 +11,8 @@ from betterleaf.resumes.services.parsing import parse_resume_upload
 from betterleaf.resumes.services.tailor.analyse import TailoringError
 from betterleaf.resumes.services.tailor.analyse import analyse_job_fit
 from betterleaf.resumes.services.tailor.assemble import build_tailored_resume_data
+from betterleaf.resumes.services.tailor.gap_answers import GapAnswerError
+from betterleaf.resumes.services.tailor.gap_answers import draft_proposals
 from betterleaf.resumes.services.tailor.master_view import add_missing_ids
 
 logger = logging.getLogger(__name__)
@@ -110,7 +112,9 @@ def analyse_job(self, request_id: str) -> None:
             master.structured_data = master_data
             master.save(update_fields=["structured_data", "updated_at"])
 
-        analysis = analyse_job_fit(tailor.job_text, master_data)
+        analysis = analyse_job_fit(
+            tailor.job_text, master_data, handled_gaps=tailor.handled_gaps,
+        )
         resume_data = build_tailored_resume_data(master_data, analysis.selection)
 
         with transaction.atomic():
@@ -125,7 +129,8 @@ def analyse_job(self, request_id: str) -> None:
             tailor.resume = resume
             tailor.result = analysis.model_dump(exclude={"selection"})
             tailor.status = TailorRequest.Status.READY
-            tailor.counted = True
+            # Follow-ups on the same job are free; only the first request counts.
+            tailor.counted = tailor.kind == TailorRequest.Kind.INITIAL
             tailor.save()
     except LLMUnavailableError as exc:
         if self.request.retries < TAILOR_MAX_RETRIES:
@@ -138,3 +143,41 @@ def analyse_job(self, request_id: str) -> None:
     except Exception:
         logger.exception("Tailoring failed for request %s", request_id)
         _mark_tailor_failed(tailor, TAILOR_FAILURE_MESSAGES["unexpected"])
+
+
+def _finish_drafting(tailor: TailorRequest, proposals: list, error: str = "") -> None:
+    """Back to ``ready`` so the report stays visible, with proposals or an error."""
+    tailor.proposals = proposals
+    tailor.error = error
+    tailor.status = TailorRequest.Status.READY
+    tailor.save(update_fields=["proposals", "error", "status", "updated_at"])
+
+
+@shared_task(bind=True, soft_time_limit=120)
+def draft_gap_proposals(self, request_id: str) -> None:
+    """Turn a TailorRequest's gap answers into proposed master bullets.
+
+    The request returns to ``ready`` either way: with ``proposals`` filled in,
+    or with an ``error`` the user can read before answering again. Only
+    network trouble is retried (at most ``TAILOR_MAX_RETRIES`` times).
+    """
+    tailor = TailorRequest.objects.select_related("master_resume").get(pk=request_id)
+    try:
+        proposals = draft_proposals(
+            tailor.job_text,
+            tailor.result.get("requirements", []),
+            tailor.answers,
+            tailor.master_resume.structured_data,
+        )
+        _finish_drafting(tailor, proposals)
+    except LLMUnavailableError as exc:
+        if self.request.retries < TAILOR_MAX_RETRIES:
+            raise self.retry(exc=exc, countdown=5, max_retries=TAILOR_MAX_RETRIES)
+        _finish_drafting(tailor, [], TAILOR_FAILURE_MESSAGES["unavailable"])
+    except GapAnswerError as exc:
+        _finish_drafting(tailor, [], str(exc))
+    except SoftTimeLimitExceeded:
+        _finish_drafting(tailor, [], TAILOR_FAILURE_MESSAGES["timeout"])
+    except Exception:
+        logger.exception("Drafting proposals failed for request %s", request_id)
+        _finish_drafting(tailor, [], TAILOR_FAILURE_MESSAGES["unexpected"])

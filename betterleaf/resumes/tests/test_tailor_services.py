@@ -115,3 +115,25 @@ def test_tailored_resume_uses_master_words_only(master):
     ]
     assert data["technical_skills"][0]["value"] == "Python"
     assert "Built REST APIs in Python" in render_resume(data)
+
+
+def test_analyse_tells_the_llm_which_gaps_are_handled(master):
+    handled = [{"requirement": "Kubernetes", "outcome": "skipped"}]
+    with mock.patch(ANALYSE, return_value=_answer(master)) as post:
+        analyse_job_fit("job", master, handled_gaps=handled)
+    assert "ALREADY HANDLED\n- Kubernetes (skipped)" in post.call_args.args[1]
+
+    with mock.patch(ANALYSE, return_value=_answer(master)) as post:
+        analyse_job_fit("job", master)
+    assert "ALREADY HANDLED" not in post.call_args.args[1]
+
+
+def test_analyse_cuts_each_skill_group_to_ten(master):
+    group = master["technical_skills"][0]
+    names = [f"Go{n}" for n in range(15)]
+    group["value"] = ", ".join(names)
+    answer = _answer(master)
+    answer["selection"]["technical_skills"] = [{"id": group["id"], "skills": names}]
+    with mock.patch(ANALYSE, return_value=answer):
+        analysis = analyse_job_fit("job", master)
+    assert analysis.selection.technical_skills[0].skills == names[:10]

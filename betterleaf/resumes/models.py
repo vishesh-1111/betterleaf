@@ -107,10 +107,27 @@ class TailorRequest(models.Model):
         ANALYSING = "analysing", "Analysing"
         READY = "ready", "Ready"
         FAILED = "failed", "Failed"
+        # The AI is turning the user's gap answers into proposed bullets.
+        DRAFTING = "drafting", "Drafting"
+
+    class Kind(models.TextChoices):
+        INITIAL = "initial", "Initial"
+        GAP_FOLLOWUP = "gap_followup", "Gap follow-up"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     workspace = models.ForeignKey(
         Workspace, on_delete=models.CASCADE, related_name="tailor_requests",
+    )
+    # Empty for the first request on a job; follow-ups point at their source.
+    parent = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="followups",
+    )
+    kind = models.CharField(
+        max_length=20, choices=Kind.choices, default=Kind.INITIAL,
     )
     master_resume = models.ForeignKey(
         MasterResume, on_delete=models.CASCADE, related_name="tailor_requests",
@@ -121,6 +138,13 @@ class TailorRequest(models.Model):
     )
     # Checked AI answer: requirements (with evidence) and gap questions.
     result = models.JSONField(blank=True, default=dict)
+    # What the user typed for each gap (skipped gaps are left out).
+    answers = models.JSONField(blank=True, default=list)
+    # Bullets the AI drafted from the answers, waiting for the user's review.
+    proposals = models.JSONField(blank=True, default=list)
+    # Gaps already answered or skipped, by requirement text, so a follow-up
+    # does not ask them again.
+    handled_gaps = models.JSONField(blank=True, default=list)
     resume = models.OneToOneField(
         Resume,
         null=True,

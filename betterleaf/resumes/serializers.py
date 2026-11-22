@@ -5,6 +5,7 @@ from betterleaf.resumes.models import Compilation
 from betterleaf.resumes.models import MasterResume
 from betterleaf.resumes.models import Resume
 from betterleaf.resumes.models import TailorRequest
+from betterleaf.resumes.services.tailor.master_update import BULLET_SECTIONS
 from betterleaf.resumes.services.tailor.schemas import Requirement
 from betterleaf.resumes.services.tailor.scores import score_requirements
 
@@ -103,18 +104,44 @@ class TailorRequestCreateSerializer(serializers.Serializer):
     job_text = serializers.CharField(trim_whitespace=True)
 
 
+class GapAnswerSerializer(serializers.Serializer):
+    requirement_id = serializers.CharField()
+    source_type = serializers.ChoiceField(choices=BULLET_SECTIONS)
+    item_id = serializers.CharField()
+    text = serializers.CharField(trim_whitespace=True)
+
+
+class GapAnswersSerializer(serializers.Serializer):
+    answers = GapAnswerSerializer(many=True, allow_empty=False)
+
+
+class AcceptedProposalSerializer(serializers.Serializer):
+    """A proposal the user kept, with their final (possibly edited) wording."""
+
+    id = serializers.CharField()
+    bullet = serializers.CharField(trim_whitespace=True)
+    skill = serializers.CharField(required=False, allow_blank=True, default="")
+    skill_group_id = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class ConfirmSerializer(serializers.Serializer):
+    accepted = AcceptedProposalSerializer(many=True)
+
+
 class TailorRequestSerializer(serializers.ModelSerializer):
     """Poll shape: just id/status until ready, then the coverage report."""
 
     class Meta:
         model = TailorRequest
-        fields = ["id", "status"]
+        fields = ["id", "status", "kind"]
 
     def to_representation(self, instance):
         body = super().to_representation(instance)
-        if instance.status == TailorRequest.Status.FAILED:
+        body["parent_id"] = str(instance.parent_id) if instance.parent_id else None
+        Status = TailorRequest.Status  # noqa: N806
+        if instance.status == Status.FAILED:
             body["error"] = instance.error
-        elif instance.status == TailorRequest.Status.READY:
+        elif instance.status in (Status.READY, Status.DRAFTING):
             requirements = instance.result.get("requirements", [])
             body["resume_id"] = str(instance.resume_id) if instance.resume_id else None
             body["scores"] = score_requirements(
@@ -122,4 +149,7 @@ class TailorRequestSerializer(serializers.ModelSerializer):
             )
             body["requirements"] = requirements
             body["gap_questions"] = instance.result.get("gap_questions", [])
+            body["proposals"] = instance.proposals
+            if instance.status == Status.READY and instance.error:
+                body["error"] = instance.error
         return body
