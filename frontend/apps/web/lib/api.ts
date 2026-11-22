@@ -1,3 +1,4 @@
+import type { ResumeData } from "@/lib/resume-data";
 import type { ProjectFile } from "@/stores/document-store";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
@@ -8,6 +9,8 @@ export interface ResumeDto {
   slug: string;
   template: string;
   main_tex: string;
+  /** Parsed resume data; `{}` for resumes that were never parsed. */
+  structured_data: Partial<ResumeData>;
   updated_at: string;
 }
 
@@ -89,7 +92,7 @@ export async function createResume(
 
 export async function patchResume(
   id: string,
-  data: { main_tex?: string; title?: string },
+  data: { main_tex?: string; title?: string; structured_data?: ResumeData },
 ): Promise<ResumeDto> {
   return request<ResumeDto>(`resumes/${id}/`, {
     method: "PATCH",
@@ -158,6 +161,9 @@ export function resumeToFile(resume: ResumeDto): ProjectFile {
     name,
     type: "tex",
     content: resume.main_tex,
+    savedTex: resume.main_tex,
+    structuredData: resume.structured_data,
+    dataStatus: "idle",
     resumeId: resume.id,
   };
 }

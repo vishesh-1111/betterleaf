@@ -1,0 +1,652 @@
+/* ------------------------------------------------------------------ *
+ * Resume editor (middle pane). Uses the workspace tokens from
+ * workspace.css: spruce ink, chalk surface, paper cards, leaf accent.
+ * Sun yellow is reserved for AI-changed content, so it is not used here.
+ * ------------------------------------------------------------------ */
+
+.bl-ws {
+  --re-danger: #a8321f;
+  --re-hover: color-mix(in srgb, var(--ink) 6%, transparent);
+}
+.dark .bl-ws {
+  --re-danger: #ff9a86;
+}
+
+.bl-ws .re-pane {
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--surface);
+}
+.bl-ws .re-panel {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+/* ---- tab bar ---------------------------------------------------- */
+.bl-ws .re-tabbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 14px;
+  background: var(--panel);
+  border-bottom: 1.5px solid var(--ink);
+}
+.bl-ws .re-tabs {
+  display: inline-flex;
+  padding: 2px;
+  border: 1.5px solid var(--ink);
+  border-radius: 999px;
+}
+.bl-ws .re-tab {
+  font: 600 0.85rem/1 var(--body);
+  padding: 7px 16px;
+  border-radius: 999px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.bl-ws .re-tab:hover {
+  background: var(--re-hover);
+}
+.bl-ws .re-tab[aria-selected="true"] {
+  background: var(--spruce);
+  color: var(--chalk);
+}
+.dark .bl-ws .re-tab[aria-selected="true"] {
+  background: var(--leaf);
+  color: #fff;
+}
+.bl-ws .re-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 1.25rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.bl-ws .re-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--re-danger);
+}
+.bl-ws .re-status-retry {
+  font: 600 0.82rem/1 var(--body);
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1.5px solid var(--ink);
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+.bl-ws .re-status-retry:hover {
+  background: var(--leaf);
+  border-color: var(--leaf);
+  color: #fff;
+}
+.bl-ws .re-spin {
+  animation: re-spin 0.9s linear infinite;
+}
+@keyframes re-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---- scroll column ---------------------------------------------- */
+.bl-ws .re-root {
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--surface);
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+.bl-ws .re-column {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 20px 16px 48px;
+}
+
+/* ---- cards ------------------------------------------------------ */
+.bl-ws .re-card {
+  background: var(--panel);
+  border: 1.5px solid var(--ink);
+  border-radius: 14px;
+}
+.bl-ws .re-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px 10px 8px;
+}
+.bl-ws .re-card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font: 700 1.05rem/1.2 var(--display);
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+.bl-ws .re-count {
+  min-width: 1.4em;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  font: 600 0.72rem/1.4 var(--body);
+  color: var(--muted);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.bl-ws .re-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.bl-ws .re-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 4px 16px 16px;
+}
+.bl-ws .re-chevron {
+  transition: transform 0.2s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.bl-ws .re-chevron.is-folded {
+  transform: rotate(-90deg);
+}
+
+/* sortable rows */
+.bl-ws .re-section.is-dragging,
+.bl-ws .re-item-wrap.is-dragging,
+.bl-ws .re-skill-row.is-dragging {
+  position: relative;
+  z-index: 5;
+}
+.bl-ws .re-section.is-dragging .re-card {
+  box-shadow: 0 10px 28px rgb(16 40 31 / 0.22);
+}
+
+/* ---- items inside a section ------------------------------------- */
+.bl-ws .re-item-wrap + .re-item-wrap {
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.bl-ws .re-item-wrap.is-dragging {
+  background: var(--panel);
+  border-radius: 10px;
+  box-shadow: 0 8px 22px rgb(16 40 31 / 0.2);
+}
+.bl-ws .re-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 8px;
+}
+.bl-ws .re-item > .re-grip,
+.bl-ws .re-item > .re-icon-btn {
+  margin-top: 21px;
+}
+.bl-ws .re-item-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* ---- fields ----------------------------------------------------- */
+.bl-ws .re-grid {
+  display: grid;
+  gap: 12px;
+}
+.bl-ws .re-grid-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.bl-ws .re-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+.bl-ws .re-field-narrow {
+  max-width: 320px;
+}
+.bl-ws .re-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font: 600 0.76rem/1.2 var(--body);
+  color: var(--muted);
+}
+.bl-ws .re-input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--ink);
+  font: 400 0.92rem/1.45 var(--body);
+  caret-color: var(--leaf);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.bl-ws .re-input::placeholder {
+  color: var(--muted);
+  opacity: 0.75;
+}
+.bl-ws .re-input:hover {
+  border-color: color-mix(in srgb, var(--ink) 40%, var(--line));
+}
+.bl-ws .re-input:focus-visible {
+  outline: none;
+  border-color: var(--leaf);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--leaf) 28%, transparent);
+  border-radius: 8px;
+}
+.bl-ws .re-input::selection,
+.bl-ws .re-chip-input::selection {
+  background: color-mix(in srgb, var(--leaf) 35%, transparent);
+}
+.bl-ws .re-input-large {
+  padding: 10px 12px;
+  font: 800 1.5rem/1.15 var(--display);
+  letter-spacing: -0.025em;
+}
+.bl-ws .re-textarea {
+  resize: none;
+  overflow: hidden;
+  min-height: 2.4rem;
+}
+.bl-ws .re-summary {
+  min-height: 4.5rem;
+}
+
+/* ---- bullets ---------------------------------------------------- */
+.bl-ws .re-bullets {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.bl-ws .re-bullet {
+  display: flex;
+  align-items: flex-start;
+  gap: 2px;
+  margin-left: -6px;
+}
+.bl-ws .re-bullet .re-grip,
+.bl-ws .re-bullet .re-icon-btn {
+  margin-top: 4px;
+}
+.bl-ws .re-bullet.is-dragging {
+  background: var(--panel);
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgb(16 40 31 / 0.2);
+}
+.bl-ws .re-bullet-delete {
+  opacity: 0;
+}
+.bl-ws .re-bullet:hover .re-bullet-delete,
+.bl-ws .re-bullet:focus-within .re-bullet-delete,
+.bl-ws .re-bullet-delete:focus-visible {
+  opacity: 1;
+}
+@media (hover: none) {
+  .bl-ws .re-bullet-delete {
+    opacity: 1;
+  }
+}
+.bl-ws .re-add-inline {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 2px 0 0 24px;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--leaf);
+  font: 600 0.82rem/1 var(--body);
+  cursor: pointer;
+}
+.dark .bl-ws .re-add-inline {
+  color: var(--leaf-bright);
+}
+.bl-ws .re-add-inline:hover {
+  background: var(--re-hover);
+}
+
+/* ---- skills ----------------------------------------------------- */
+.bl-ws .re-skill-row {
+  display: grid;
+  grid-template-columns: auto minmax(110px, 170px) minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 8px;
+}
+.bl-ws .re-skill-row + .re-skill-row {
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.bl-ws .re-skill-row .re-grip,
+.bl-ws .re-skill-row .re-skill-delete {
+  margin-top: 21px;
+}
+.bl-ws .re-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-height: 2.4rem;
+  padding: 5px 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  cursor: text;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.bl-ws .re-chips:focus-within {
+  border-color: var(--leaf);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--leaf) 28%, transparent);
+}
+.bl-ws .re-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 4px 3px 10px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  font: 500 0.84rem/1.2 var(--body);
+}
+.bl-ws .re-chip-x {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.bl-ws .re-chip-x:hover {
+  background: var(--re-hover);
+  color: var(--ink);
+}
+.bl-ws .re-chip-input {
+  flex: 1;
+  min-width: 9ch;
+  padding: 4px 4px;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--ink);
+  font: 400 0.88rem/1.3 var(--body);
+  caret-color: var(--leaf);
+}
+.bl-ws .re-chip-input::placeholder {
+  color: var(--muted);
+  opacity: 0.75;
+}
+
+/* ---- buttons ---------------------------------------------------- */
+.bl-ws .re-grip,
+.bl-ws .re-icon-btn {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, opacity 0.15s;
+}
+.bl-ws .re-grip {
+  width: 24px;
+  cursor: grab;
+  touch-action: none;
+}
+.bl-ws .re-grip:active {
+  cursor: grabbing;
+}
+.bl-ws .re-grip:hover,
+.bl-ws .re-icon-btn:hover {
+  background: var(--re-hover);
+  color: var(--ink);
+}
+.bl-ws .re-icon-btn:hover {
+  color: var(--re-danger);
+}
+.bl-ws .re-icon-btn[aria-expanded]:hover {
+  color: var(--ink);
+}
+.bl-ws .re-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 12px;
+  border: 1.5px solid var(--ink);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink);
+  font: 600 0.8rem/1 var(--body);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.bl-ws .re-pill:hover {
+  background: var(--leaf);
+  border-color: var(--leaf);
+  color: #fff;
+}
+
+.bl-ws .re-add-section {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding-top: 4px;
+}
+.bl-ws .re-add-section-label {
+  font: 600 0.85rem/1 var(--body);
+  color: var(--muted);
+  margin-right: 4px;
+}
+
+/* ---- empty / loading -------------------------------------------- */
+.bl-ws .re-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.bl-ws .re-state {
+  max-width: 44ch;
+  margin: 12vh auto 0;
+  padding: 0 20px;
+  color: var(--muted);
+  text-align: center;
+}
+.bl-ws .re-state-title {
+  margin: 0 0 8px;
+  font: 700 1.2rem/1.2 var(--display);
+  letter-spacing: -0.015em;
+  color: var(--ink);
+}
+.bl-ws .re-skeleton {
+  height: 150px;
+  border-radius: 14px;
+  background: linear-gradient(
+    90deg,
+    var(--line) 0%,
+    color-mix(in srgb, var(--line) 50%, var(--panel)) 50%,
+    var(--line) 100%
+  );
+  background-size: 200% 100%;
+  animation: re-shimmer 1.4s linear infinite;
+}
+.bl-ws .re-skeleton-tall {
+  height: 260px;
+}
+@keyframes re-shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Printed-page layout: no card boxes, ink-ruled sections, labels in a
+ * left gutter, underline-only inputs. Overrides the card styles above.
+ * ------------------------------------------------------------------ */
+.bl-ws .re-column {
+  max-width: 720px;
+  gap: 0;
+  padding: 28px 24px 64px;
+}
+.bl-ws .re-column .re-card {
+  background: transparent;
+  border: 0;
+  border-top: 1.5px solid var(--ink);
+  border-radius: 0;
+  padding-top: 6px;
+  margin-top: 30px;
+}
+.bl-ws .re-column > section.re-card:first-child {
+  border-top: 0;
+  margin-top: 0;
+}
+.bl-ws .re-column .re-card-head {
+  padding: 8px 0 4px;
+}
+.bl-ws .re-column .re-card-title {
+  font: 800 1.35rem/1.1 var(--display);
+  letter-spacing: -0.025em;
+}
+.bl-ws .re-column .re-card-body {
+  padding: 10px 0 0;
+  gap: 18px;
+}
+.bl-ws .re-column .re-count {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  font-size: 0.8rem;
+}
+.bl-ws .re-column .re-field {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr);
+  align-items: baseline;
+  gap: 10px;
+}
+.bl-ws .re-column .re-field-narrow {
+  max-width: none;
+}
+.bl-ws .re-column .re-label {
+  font-weight: 500;
+  font-size: 0.78rem;
+}
+.bl-ws .re-column .re-input {
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  padding: 6px 2px;
+}
+.bl-ws .re-column .re-input:hover {
+  border-bottom-color: var(--ink);
+}
+.bl-ws .re-column .re-input:focus-visible {
+  box-shadow: none;
+  border-bottom: 2px solid var(--leaf);
+  padding-bottom: 5px;
+  border-radius: 0;
+}
+.bl-ws .re-column .re-input-large {
+  font: 800 2.3rem/1.05 var(--display);
+  letter-spacing: -0.03em;
+  padding: 4px 2px 10px;
+}
+.bl-ws .re-column .re-field:has(.re-input-large) {
+  display: flex;
+  flex-direction: column;
+}
+.bl-ws .re-column .re-field:has(.re-input-large) .re-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.bl-ws .re-column .re-grid-2 {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+}
+.bl-ws .re-column .re-item-wrap + .re-item-wrap {
+  padding-top: 22px;
+  margin-top: 8px;
+}
+.bl-ws .re-column .re-bullet .re-textarea {
+  border-bottom-color: transparent;
+}
+.bl-ws .re-column .re-bullet .re-textarea:hover {
+  border-bottom-color: var(--line);
+}
+.bl-ws .re-column .re-chips {
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  padding-inline: 0;
+}
+.bl-ws .re-column .re-chip {
+  border: 0;
+  background: color-mix(in srgb, var(--leaf) 14%, transparent);
+}
+.bl-ws .re-column .re-pill {
+  border-width: 1px;
+}
+
+/* ---- narrow pane (the pane is resizable, so query its own width) -- */
+@container (max-width: 520px) {
+  .bl-ws .re-grid-2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .bl-ws .re-skill-row {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+  .bl-ws .re-skill-values {
+    grid-column: 1 / -1;
+  }
+  .bl-ws .re-card-head {
+    flex-wrap: wrap;
+  }
+  .bl-ws .re-column {
+    padding-inline: 10px;
+  }
+  .bl-ws .re-card-body {
+    padding-inline: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bl-ws .re-spin,
+  .bl-ws .re-skeleton {
+    animation: none !important;
+  }
+}

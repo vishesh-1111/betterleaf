@@ -5,6 +5,7 @@ from betterleaf.resumes.models import Compilation
 from betterleaf.resumes.models import MasterResume
 from betterleaf.resumes.models import Resume
 from betterleaf.resumes.models import TailorRequest
+from betterleaf.resumes.services.schemas import ResumeData
 from betterleaf.resumes.services.tailor.master_update import BULLET_SECTIONS
 from betterleaf.resumes.services.tailor.schemas import Requirement
 from betterleaf.resumes.services.tailor.scores import score_requirements
@@ -70,8 +71,15 @@ class ResumeSerializer(serializers.ModelSerializer):
             "id",
             "slug",
             "updated_at",
-            "structured_data",
         ]
+
+    def validate_structured_data(self, value):
+        """Accept only a well-formed resume; fill any missing ids."""
+        try:
+            return ResumeData.model_validate(value).model_dump(mode="json")
+        except ValueError as exc:
+            message = f"Invalid resume data: {exc}"
+            raise serializers.ValidationError(message) from exc
 
     def validate_template(self, value):
         if value not in TEMPLATE_CATALOG:
@@ -83,7 +91,15 @@ class ResumeSerializer(serializers.ModelSerializer):
 class ResumeListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Resume
-        fields = ["id", "title", "slug", "template", "main_tex", "updated_at"]
+        fields = [
+            "id",
+            "title",
+            "slug",
+            "template",
+            "main_tex",
+            "structured_data",
+            "updated_at",
+        ]
         read_only_fields = ["id", "slug", "updated_at"]
 
 

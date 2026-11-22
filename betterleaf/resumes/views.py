@@ -35,6 +35,7 @@ from betterleaf.resumes.serializers import TailorRequestCreateSerializer
 from betterleaf.resumes.serializers import TailorRequestSerializer
 from betterleaf.resumes.serializers import TemplateSerializer
 from betterleaf.resumes.services.compiler import run_compilation
+from betterleaf.resumes.services.latex import render_resume
 from betterleaf.resumes.services.tailor.gap_answers import GapAnswerError
 from betterleaf.resumes.services.tailor.gap_answers import handled_gaps_after
 from betterleaf.resumes.services.tailor.gap_answers import validate_answers
@@ -191,6 +192,16 @@ class ResumeViewSet(viewsets.ModelViewSet):
             workspace=self.request.workspace,
             main_tex=template.starter_tex.read_text(),
         )
+
+    def perform_update(self, serializer):
+        # Resume data is the source of truth: when it is sent, the LaTeX is
+        # regenerated from it (and wins over any main_tex in the same request).
+        if "structured_data" in serializer.validated_data:
+            serializer.save(
+                main_tex=render_resume(serializer.validated_data["structured_data"]),
+            )
+        else:
+            serializer.save()
 
     @action(detail=True, methods=["post"])
     def compile(self, request, pk=None):

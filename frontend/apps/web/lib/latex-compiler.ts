@@ -21,7 +21,17 @@ export async function compileLatex(): Promise<Uint8Array> {
   const content = file.content ?? "";
   let resumeId = file.resumeId;
   if (resumeId) {
-    await patchResume(resumeId, { main_tex: content });
+    // Skip the save when the server already has this exact LaTeX (for example
+    // right after the form regenerated it); an older copy must never be
+    // written over a newer render.
+    if (content !== file.savedTex) {
+      await patchResume(resumeId, { main_tex: content });
+      useDocumentStore.setState((s) => ({
+        files: s.files.map((f) =>
+          f.id === file.id ? { ...f, savedTex: content } : f,
+        ),
+      }));
+    }
   } else {
     const resume = await createResume(file.name, content);
     resumeId = resume.id;

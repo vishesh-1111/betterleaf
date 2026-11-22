@@ -2,7 +2,7 @@
 
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { Sidebar } from "./sidebar";
-import { LatexEditor } from "./editor/latex-editor";
+import { MiddlePane } from "./middle-pane";
 import { PdfPreview } from "./preview/pdf-preview";
 import { useProjectInit } from "@/hooks/use-project-init";
 import { useDocumentStore } from "@/stores/document-store";
@@ -71,7 +71,7 @@ export function WorkspaceLayout() {
           <PanelResizeHandle className="resize-handle" />
 
           <Panel defaultSize={42.5} minSize={25}>
-            <LatexEditor />
+            <MiddlePane />
           </Panel>
 
           <PanelResizeHandle className="resize-handle" />
