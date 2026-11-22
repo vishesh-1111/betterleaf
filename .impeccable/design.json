@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-21T00:00:00Z",
+  "title": "Design System: BetterLeaf",
+  "extensions": {
+    "colorMeta": {
+      "spruce": { "role": "primary", "displayName": "Spruce Ink", "canonical": "#10281f", "tonalRamp": ["#0a1a14", "#10281f", "#16362b", "#2b4f40", "#4e6158", "#7fa896", "#d3dad2", "#f2f4f0"] },
+      "leaf": { "role": "secondary", "displayName": "Leaf Green", "canonical": "#2e7d5b", "tonalRamp": ["#14382a", "#1f5640", "#2e7d5b", "#4f9a78", "#7fd1a6", "#a6e0c3", "#cdeedc", "#e8f6ee"] },
+      "sun": { "role": "tertiary", "displayName": "Sun Marker", "canonical": "#f2c14e", "tonalRamp": ["#6b4f0c", "#9a7413", "#c99a24", "#f2c14e", "#f5d078", "#f8dea0", "#fbebc7", "#fdf6e4"] },
+      "chalk": { "role": "neutral", "displayName": "Chalk", "canonical": "#f2f4f0", "tonalRamp": ["#10281f", "#4e6158", "#7fa896", "#9db9ab", "#d3dad2", "#e4e9e2", "#f2f4f0", "#ffffff"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Landing hero." },
+      "headline": { "displayName": "Headline", "purpose": "Section headings." },
+      "title": { "displayName": "Title", "purpose": "Card and pair headings." },
+      "body": { "displayName": "Body", "purpose": "Paragraphs, capped at 62ch." },
+      "label": { "displayName": "Label", "purpose": "Buttons, pills, tabs." },
+      "code": { "displayName": "Code", "purpose": "LaTeX source." }
+    },
+    "shadows": [
+      { "name": "studio-block", "value": "10px 10px 0 #10281f", "purpose": "Hero editor mockup and upload dialog." },
+      { "name": "sheet-block", "value": "8px 8px 0 #2e7d5b", "purpose": "PDF preview sheet in the workspace." },
+      { "name": "hairline-paper", "value": "0 1px 0 #d3dad2", "purpose": "Mock resume page." }
+    ],
+    "motion": [
+      { "name": "settle", "value": "cubic-bezier(0.2, 0.7, 0.2, 1)", "purpose": "Single load settle, 0.5-0.7s; disabled under prefers-reduced-motion." },
+      { "name": "state", "value": "0.15s", "purpose": "Button and handle hover transitions." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "520px" },
+      { "name": "md", "value": "960px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Main call to action; pill, spruce fill, leaf hover.",
+      "html": "<button class=\"ds-btn\">Upload your resume</button>",
+      "css": ".ds-btn{font:600 1rem/1 'Instrument Sans',Arial,sans-serif;padding:17px 28px;border-radius:999px;border:2px solid #10281f;background:#10281f;color:#f2f4f0;cursor:pointer;transition:background .15s,color .15s,border-color .15s}.ds-btn:hover{background:#2e7d5b;border-color:#2e7d5b}.ds-btn:focus-visible{outline:3px solid #2e7d5b;outline-offset:3px}"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Secondary action; transparent with spruce outline.",
+      "html": "<button class=\"ds-btn-ghost\">See how it works</button>",
+      "css": ".ds-btn-ghost{font:600 1rem/1 'Instrument Sans',Arial,sans-serif;padding:17px 28px;border-radius:999px;border:2px solid #10281f;background:transparent;color:#10281f;cursor:pointer;transition:background .15s,color .15s}.ds-btn-ghost:hover{background:#10281f;color:#f2f4f0}.ds-btn-ghost:focus-visible{outline:3px solid #2e7d5b;outline-offset:3px}"
+    },
+    {
+      "name": "Status Pill",
+      "kind": "chip",
+      "refersTo": "pill-status",
+      "description": "Sun for needs attention, leaf for done.",
+      "html": "<span class=\"ds-pill\">2 pages</span> <span class=\"ds-pill ds-ok\">1 page</span>",
+      "css": ".ds-pill{display:inline-block;font:600 .85rem/1 'Instrument Sans',Arial,sans-serif;padding:6px 12px;border-radius:999px;background:#f2c14e;color:#10281f}.ds-pill.ds-ok{background:#2e7d5b;color:#fff}"
+    },
+    {
+      "name": "Plan Card",
+      "kind": "card",
+      "refersTo": "plan-card",
+      "description": "Paper card with spruce border; dashed for coming soon.",
+      "html": "<div class=\"ds-card\"><h3>Free</h3><p>Tailor a capped number of resumes.</p></div>",
+      "css": ".ds-card{border:1.5px solid #10281f;border-radius:18px;padding:34px;background:#fff;color:#10281f;font-family:'Instrument Sans',Arial,sans-serif}.ds-card h3{font:700 1.3rem/1.2 'Bricolage Grotesque',Arial,sans-serif;letter-spacing:-.015em;margin:0 0 8px}.ds-card p{margin:0;color:#4e6158}"
+    },
+    {
+      "name": "Code Window",
+      "kind": "custom",
+      "description": "Spruce LaTeX editor with a sun-tinted AI-changed line.",
+      "html": "<div class=\"ds-code\"><div class=\"ds-ln\"><span class=\"ds-no\">1</span><span><span class=\"ds-cmd\">\\section</span>{Experience}</span></div><div class=\"ds-ln ds-chg\"><span class=\"ds-no\">2</span><span><span class=\"ds-cmd\">\\resumeItem</span>{Cut p95 latency 840 ms to 210 ms.}</span></div></div>",
+      "css": ".ds-code{background:#10281f;color:#d9e6de;font:.8rem/1.65 ui-monospace,Menlo,monospace;padding:18px 0;border:1.5px solid #10281f;border-radius:12px}.ds-ln{display:flex;gap:14px;padding-right:18px;border-left:3px solid transparent}.ds-no{width:2.5em;text-align:right;color:#7fa896}.ds-cmd{color:#7fd1a6}.ds-chg{border-left-color:#f2c14e;background:rgba(242,193,78,.14)}"
+    },
+    {
+      "name": "Resume Sheet",
+      "kind": "custom",
+      "description": "Paper preview with the leaf-green hard offset shadow.",
+      "html": "<div class=\"ds-sheet\"><div class=\"ds-nm\">Alex Rivera</div><div class=\"ds-ct\">alex@rivera.dev | Berlin</div></div>",
+      "css": ".ds-sheet{background:#fff;border:1.5px solid #10281f;box-shadow:8px 8px 0 #2e7d5b;padding:24px;color:#10281f;font-family:'Latin Modern Roman','CMU Serif',Georgia,serif;max-width:320px}.ds-nm{font-size:1.55rem}.ds-ct{font-size:.72rem;color:#4e6158}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Honest Proof Sheet",
+    "overview": "BetterLeaf looks like a proof sheet on a printer's desk: deep spruce ink, chalk-white stock, hard-edged paper that casts a hard offset shadow, and one warm marker (sun) used only where the AI touched the text. The visual rule mirrors the product rule: the AI selects and orders, it does not invent, so every change must be visibly marked and nothing decorative competes with the resume itself.",
+    "keyCharacteristics": [
+      "Spruce ink for text, chrome and the code window; chalk for pages; white only for paper.",
+      "1.5px ink borders and hard offset shadows instead of blurs.",
+      "Pill buttons; 18px cards; the PDF sheet is the only element that reads as \"paper\".",
+      "Sun yellow means \"changed by the AI\", nothing else.",
+      "Display type is heavy and tight (800, -0.025em); body is quiet humanist sans."
+    ],
+    "rules": [
+      { "name": "The Sun Means Changed Rule", "body": "Sun yellow appears only on content the AI modified (plus the caret and the \"2 pages\" warning pill). Using it as decoration destroys its meaning.", "section": "colors" },
+      { "name": "The One Accent Rule", "body": "Leaf green is the only chromatic accent; no blue, purple, or gradients.", "section": "colors" },
+      { "name": "The Tight Heavy Display Rule", "body": "Display type is always 700-800 with negative tracking; never light, never loosely tracked.", "section": "typography" },
+      { "name": "The No Blur Rule", "body": "Shadows are hard offset blocks, never soft or diffused, and appear only on paper-like surfaces.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do use spruce (#10281f) for text, borders and primary fills; chalk (#f2f4f0) for pages.",
+      "Do reserve sun (#f2c14e) for AI-changed content and the caret.",
+      "Do use hard offset shadows (8-10px, zero blur) on paper-like focal surfaces only.",
+      "Do keep buttons pill-shaped with a leaf-green hover.",
+      "Do honor `prefers-reduced-motion`; motion is a single 0.5-0.7s settle (cubic-bezier(0.2, 0.7, 0.2, 1)) on load.",
+      "Do treat the namespaced `.bl` / `.bl-ws` spruce tokens as the source of truth for new UI; migrate the shadcn neutral defaults toward them."
+    ],
+    "donts": [
+      "Don't introduce blur shadows, glassmorphism, or gradients.",
+      "Don't add a second chromatic accent beside leaf green.",
+      "Don't use sun yellow decoratively.",
+      "Don't ship new UI with the default shadcn neutral greys and 0.625rem radius; it contradicts the spruce identity.",
+      "Don't use modals for core tailoring flow; PRODUCT.md requires inline, single-page interaction."
+    ]
+  }
+}
