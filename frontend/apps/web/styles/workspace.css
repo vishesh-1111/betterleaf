@@ -81,18 +81,19 @@
 .bl-ws .ws-top {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  height: 56px;
-  padding: 0 20px;
+  flex: none;
+  height: 60px;
+  padding: 0 24px;
   background: var(--spruce);
   color: var(--chalk);
+  border-bottom: 3px solid var(--leaf);
 }
 .bl-ws .ws-brand {
   display: inline-flex;
   align-items: baseline;
   gap: 2px;
-  font: 800 1.35rem/1 var(--display);
-  letter-spacing: -0.035em;
+  font: 800 1.5rem/1 var(--display);
+  letter-spacing: -0.03em;
   color: var(--chalk);
   text-decoration: none;
 }
@@ -104,11 +105,6 @@
   vertical-align: -0.115em;
   color: var(--chalk);
   overflow: visible;
-}
-.bl-ws .ws-sub {
-  font-size: 0.82rem;
-  color: var(--muted-2);
-  margin-left: 10px;
 }
 
 /* Buttons: pill, spruce border, leaf hover (matches landing .btn) */

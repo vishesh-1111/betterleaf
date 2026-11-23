@@ -50,12 +50,9 @@ export function WorkspaceLayout() {
     <div className="bl-ws flex h-full flex-col">
       <header className="ws-top">
         <Link href="/" className="ws-brand" aria-label="Betterleaf home">
-          <span className="ws-brand">
-            Betterlea
-            <LeafMark />
-          </span>
+          Betterlea
+          <LeafMark />
         </Link>
-        <span className="ws-sub">LaTeX resume workspace</span>
       </header>
 
       {!initialized ? (
