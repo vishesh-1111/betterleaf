@@ -38,6 +38,8 @@ interface DocumentState {
   isThreadOpen: boolean;
   pdfData: Uint8Array | null;
   compileError: string | null;
+  /** Compiler reported errors but still produced a PDF. */
+  compileWarning: string | null;
   isCompiling: boolean;
   isSaving: boolean;
   initialized: boolean;
@@ -57,6 +59,7 @@ interface DocumentState {
   setThreadOpen: (open: boolean) => void;
   setPdfData: (data: Uint8Array | null) => void;
   setCompileError: (error: string | null) => void;
+  setCompileWarning: (warning: string | null) => void;
   setIsCompiling: (isCompiling: boolean) => void;
   setIsSaving: (isSaving: boolean) => void;
   insertAtCursor: (text: string) => void;
@@ -177,6 +180,7 @@ export const useDocumentStore = create<DocumentState>()((set, get) => ({
   isThreadOpen: false,
   pdfData: null,
   compileError: null,
+  compileWarning: null,
   isCompiling: false,
   isSaving: false,
   initialized: false,
@@ -238,7 +242,10 @@ export const useDocumentStore = create<DocumentState>()((set, get) => ({
 
   setPdfData: (data) => set({ pdfData: data, compileError: null }),
 
-  setCompileError: (error) => set({ compileError: error, pdfData: null }),
+  setCompileError: (error) =>
+    set({ compileError: error, pdfData: null, compileWarning: null }),
+
+  setCompileWarning: (warning) => set({ compileWarning: warning }),
 
   setIsCompiling: (isCompiling) =>
     set((state) =>

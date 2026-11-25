@@ -234,6 +234,8 @@ _PREAMBLE = r"""%-------------------------
 \usepackage{titlesec}
 \usepackage[usenames,dvipsnames]{color}
 \usepackage{enumitem}
+\usepackage[T1]{fontenc}
+\usepackage{charter} % sturdier than Computer Modern, prints darker
 \usepackage[hidelinks]{hyperref}
 \usepackage{fancyhdr}
 \usepackage[english]{babel}
@@ -311,7 +313,7 @@ _PREAMBLE = r"""%-------------------------
 
 \newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=*]}
 \newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
-\newcommand{\resumeItemListStart}{\begin{itemize}[itemsep=0pt, topsep=0pt, parsep=0pt, partopsep=0pt]}
+\newcommand{\resumeItemListStart}{\begin{itemize}[itemsep=3pt, topsep=0pt, parsep=0pt, partopsep=0pt]}
 \newcommand{\resumeItemListEnd}{\end{itemize}\vspace{-5pt}}
 
 %-------------------------------------------

@@ -129,7 +129,11 @@ export type CompilationStatus = "queued" | "running" | "succeeded" | "failed";
 export interface CompilationDto {
   id: string;
   status: CompilationStatus;
-  /** Base64-encoded PDF; empty unless the compile succeeded. */
+  /** Compiler exit code (0 = clean); null if the compiler never ran. */
+  exit_status: number | null;
+  /** Whether a PDF was produced (can be true even when exit_status != 0). */
+  has_pdf: boolean;
+  /** Base64-encoded PDF; empty when no PDF was produced. */
   pdf_base64: string;
   log: string;
 }

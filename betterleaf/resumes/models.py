@@ -94,6 +94,9 @@ class Compilation(models.Model):
     # Compiled PDF, base64-encoded (ASCII). Kept in the row so deploys need no
     # media storage and the compile response can return it directly.
     pdf_base64 = models.TextField(blank=True, default="")
+    # Compiler exit code (0 == clean). Independent of PDF availability: TeX can
+    # exit non-zero yet still emit a PDF (nonstopmode without halt-on-error).
+    exit_status = models.IntegerField(null=True, blank=True)
     log = models.TextField(blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
     finished_at = models.DateTimeField(null=True, blank=True)

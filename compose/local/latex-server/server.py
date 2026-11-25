@@ -90,15 +90,19 @@ def compile_document(main_file: str, files: list[tuple[str, bytes]]) -> dict:
                 [  # noqa: S607
                     "pdflatex",
                     "-interaction=nonstopmode",
-                    "-halt-on-error",
+                    # "-halt-on-error",
                     main_file,
                 ],
                 cwd=tmpdir,
                 capture_output=True,
-                text=True,
+                # Raw bytes: pdflatex output can contain invalid UTF-8
+                # (truncated multibyte chars in error context lines).
                 timeout=COMPILE_TIMEOUT,
                 check=False,
             )
+        except OSError as exc:  # e.g. pdflatex missing / not executable
+            logger.exception("failed to launch pdflatex")
+            return {"status": -1, "log": f"Failed to run pdflatex: {exc}", "pdf": None}
         except subprocess.TimeoutExpired:
             return {
                 "status": -1,
@@ -106,7 +110,9 @@ def compile_document(main_file: str, files: list[tuple[str, bytes]]) -> dict:
                 "pdf": None,
             }
 
-        log = (proc.stdout or "") + (proc.stderr or "")
+        log = (proc.stdout or b"").decode("utf-8", errors="replace") + (
+            proc.stderr or b""
+        ).decode("utf-8", errors="replace")
         pdf_path = tmpdir / f"{Path(main_file).stem}.pdf"
         pdf_b64 = None
         if pdf_path.exists():
@@ -170,7 +176,12 @@ class Handler(BaseHTTPRequestHandler):
             self._send_json(400, {"error": str(exc)})
             return
 
-        result = compile_document(main_file, files)
+        try:
+            result = compile_document(main_file, files)
+        except Exception:  # noqa: BLE001 - never drop the connection silently
+            logger.exception("unhandled error during compile")
+            self._send_json(500, {"error": "internal compile error"})
+            return
         self._send_json(200, result)
 
     def log_message(self, fmt: str, *args) -> None:

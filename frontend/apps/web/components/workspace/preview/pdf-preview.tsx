@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { useDocumentStore } from "@/stores/document-store";
 import { Button } from "@/components/ui/button";
-import { checkAuthentication, googleLoginUrl } from "@/lib/api";
+import { checkAuthentication } from "@/lib/api";
 import {
   Select,
   SelectContent,
@@ -49,6 +49,7 @@ const PdfViewer = dynamic(
 export function PdfPreview() {
   const pdfData = useDocumentStore((s) => s.pdfData);
   const compileError = useDocumentStore((s) => s.compileError);
+  const compileWarning = useDocumentStore((s) => s.compileWarning);
   const isCompiling = useDocumentStore((s) => s.isCompiling);
   const isSaving = useDocumentStore((s) => s.isSaving);
   const setPdfData = useDocumentStore((s) => s.setPdfData);
@@ -165,12 +166,10 @@ export function PdfPreview() {
 
   // Auth-gated download entry point: if authenticated, download immediately;
   // otherwise kick off the Google OAuth flow and resume on return.
+  // TEMP: auth gate disabled — download directly. Restore the
+  // checkAuthentication()/googleLoginUrl() flow to re-enable.
   const handleDownloadClick = async () => {
-    if (await checkAuthentication()) {
-      handleDownload();
-      return;
-    }
-    window.location.href = googleLoginUrl();
+    handleDownload();
   };
 
   // Resume a download that was interrupted by the OAuth redirect. After
@@ -322,14 +321,31 @@ export function PdfPreview() {
     }
 
     return (
-      <PdfViewer
-        data={pdfData}
-        scale={scale}
-        onError={setPdfError}
-        onLoadSuccess={handleLoadSuccess}
-        onScaleChange={handleScaleChange}
-        onTextClick={handleTextClick}
-      />
+      <>
+        {compileWarning && (
+          <div
+            className="flex items-start gap-2 border-b px-3 py-2 text-xs"
+            style={{ color: "var(--muted)", background: "var(--surface)" }}
+            title={compileWarning}
+          >
+            <AlertCircleIcon
+              className="mt-0.5 size-4 shrink-0"
+              style={{ color: "var(--leaf)" }}
+            />
+            <span className="line-clamp-2 whitespace-pre-wrap">
+              {compileWarning}
+            </span>
+          </div>
+        )}
+        <PdfViewer
+          data={pdfData}
+          scale={scale}
+          onError={setPdfError}
+          onLoadSuccess={handleLoadSuccess}
+          onScaleChange={handleScaleChange}
+          onTextClick={handleTextClick}
+        />
+      </>
     );
   };
 

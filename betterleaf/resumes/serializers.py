@@ -126,9 +126,22 @@ class ResumeListSerializer(TailorRequestIdMixin, serializers.ModelSerializer):
 class CompilationListSerializer(serializers.ModelSerializer):
     """Light shape for listings: omits the (large) base64 PDF."""
 
+    has_pdf = serializers.SerializerMethodField()
+
+    def get_has_pdf(self, obj) -> bool:
+        return bool(obj.pdf_base64)
+
     class Meta:
         model = Compilation
-        fields = ["id", "status", "log", "created_at", "finished_at"]
+        fields = [
+            "id",
+            "status",
+            "exit_status",
+            "has_pdf",
+            "log",
+            "created_at",
+            "finished_at",
+        ]
 
 
 class CompilationSerializer(CompilationListSerializer):

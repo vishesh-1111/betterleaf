@@ -1,8 +1,4 @@
-import {
-  compileResume,
-  createResume,
-  patchResume,
-} from "@/lib/api";
+import { compileResume, createResume, patchResume } from "@/lib/api";
 import { useDocumentStore } from "@/stores/document-store";
 
 /**
@@ -41,19 +37,31 @@ export async function compileLatex(): Promise<Uint8Array> {
   }
 
   const compilation = await compileResume(resumeId);
-  if (compilation.status === "succeeded" && compilation.pdf_base64) {
+
+  const log = compilation.log ?? "";
+  const errorLines = log
+    .split("\n")
+    .filter(
+      (l) => l.includes("Error") || l.includes("!") || l.includes("Missing"),
+    )
+    .slice(0, 10)
+    .join("\n");
+  const summary = errorLines || log.slice(-1000);
+
+  // PDF availability is independent of the compiler exit code: TeX can exit
+  // non-zero and still emit a PDF.
+  if (compilation.pdf_base64) {
+    useDocumentStore
+      .getState()
+      .setCompileWarning(
+        compilation.exit_status === 0
+          ? null
+          : `Compiled with errors (exit ${compilation.exit_status})\n\n${summary}`.trim(),
+      );
     return Uint8Array.from(atob(compilation.pdf_base64), (c) =>
       c.charCodeAt(0),
     );
   }
 
-  const log = compilation.log ?? "";
-  const errorLines = log
-    .split("\n")
-    .filter((l) => l.includes("Error") || l.includes("!") || l.includes("Missing"))
-    .slice(0, 10)
-    .join("\n");
-  throw new Error(
-    `Compilation failed\n\n${errorLines || log.slice(-1000)}`.trim(),
-  );
+  throw new Error(`Compilation failed\n\n${summary}`.trim());
 }

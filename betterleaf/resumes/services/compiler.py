@@ -35,7 +35,8 @@ def compile_latex(
     """Compile ``latex`` and return ``(status, log, pdf_bytes)``.
 
     ``status`` is the compiler exit code (0 == success). ``pdf_bytes`` is
-    ``None`` when compilation failed or no PDF was produced.
+    ``None`` only when no PDF was produced; a non-zero ``status`` can still
+    come with a PDF.
 
     ``extra_files`` maps filename -> raw bytes (e.g. ``resume.cls``) to send
     alongside ``main.tex``.
@@ -105,7 +106,8 @@ def run_compilation(compilation) -> None:
     compilation.status = Compilation.Status.RUNNING
     compilation.save(update_fields=["status"])
 
-    def finish(status, log, pdf=None):
+    def finish(status, log, pdf=None, exit_status=None):
+        compilation.exit_status = exit_status
         if pdf:
             compilation.pdf_base64 = base64.b64encode(pdf).decode("ascii")
         compilation.status = status
@@ -129,7 +131,12 @@ def run_compilation(compilation) -> None:
         finish(Compilation.Status.FAILED, str(exc))
         return
 
-    if status == 0 and pdf:
-        finish(Compilation.Status.SUCCEEDED, log, pdf)
-    else:
-        finish(Compilation.Status.FAILED, log)
+    # status = compiler exit code; PDF availability is independent. A non-zero
+    # exit may still yield a (partial) PDF, which is kept.
+    ok = status == 0 and bool(pdf)
+    finish(
+        Compilation.Status.SUCCEEDED if ok else Compilation.Status.FAILED,
+        log,
+        pdf,
+        exit_status=status,
+    )

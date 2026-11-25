@@ -245,7 +245,7 @@ class ResumeViewSet(viewsets.ModelViewSet):
         resume = self.get_object()
         latest = (
             Compilation.objects.filter(
-                resume=resume, status=Compilation.Status.SUCCEEDED,
+                resume=resume,
             )
             .exclude(pdf_base64="")
             .order_by("-finished_at")
