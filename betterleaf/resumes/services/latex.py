@@ -16,6 +16,7 @@ Determinism guarantees:
 """
 
 import json
+import re
 
 from betterleaf.resumes.services.schemas import ResumeData
 from betterleaf.resumes.services.schemas import SECTION_KEYS
@@ -42,6 +43,20 @@ _LATEX_ESCAPES = {
 def _escape(text: str) -> str:
     """Escape LaTeX special characters in a plain-text string."""
     return "".join(_LATEX_ESCAPES.get(ch, ch) for ch in text)
+
+
+def _escape_rich(text: str) -> str:
+    """Escape ``text``, turning Markdown ``**bold**`` spans into ``\\textbf{}``.
+
+    Unbalanced ``**`` markers are dropped rather than left to break bolding.
+    """
+    parts = text.split("**")
+    if len(parts) % 2 == 0:
+        return _escape(text.replace("**", ""))
+    return "".join(
+        rf"\textbf{{{_escape(part)}}}" if i % 2 and part else _escape(part)
+        for i, part in enumerate(parts)
+    )
 
 
 def _join(items: list[str], sep: str) -> str:
@@ -135,45 +150,45 @@ def _render_experience(items: list) -> str:
             lines.append("      \\resumeItemListStart")
             for bullet in bullets:
                 lines.append(
-                    f"        \\resumeItemPlain{{{_escape(bullet['text'])}}}"
+                    f"        \\resumeItemPlain{{{_escape_rich(bullet['text'])}}}"
                 )
             lines.append("      \\resumeItemListEnd")
     lines.append("  \\resumeSubHeadingListEnd")
     return "\n".join(lines)
 
 
+# A parsed bullet like "Source Code: GitHub Repository" duplicates the link line
+# we append ourselves, so it is dropped when the project has a github link.
+_SOURCE_BULLET_RE = re.compile(r"\s*\W*\s*source\s*code\b", re.IGNORECASE)
+
+
 def _render_projects(items: list) -> str:
     lines = ["\\section{Projects}\n  \\resumeSubHeadingListStart"]
     for proj in items:
         title = _escape(proj["title"])
-        tech_stack = proj.get("tech_stack") or ""
-        header = rf"\resumeProjectHeading{{\textbf{{{title}}}"
-        if tech_stack:
-            header += rf" \enspace|\enspace \emph{{{_escape(tech_stack)}}}"
-        header += r"}{}"
-        lines.append(f"    {header}")
-
-        links: list[str] = []
-        if proj.get("github"):
-            url = _normalize_https(proj["github"], "https://github.com/")
-            links.append(rf"\href{{{_escape(url)}}}{{\underline{{GitHub}}}}")
         if proj.get("deployed"):
             url = _normalize_https(proj["deployed"], "https://")
-            links.append(rf"\href{{{_escape(url)}}}{{\underline{{Live}}}}")
-        if links:
-            lines.append(
-                "          \\resumeItemListStart\n"
-                f"            \\resumeItemPlain{{{ ' $|$ '.join(links) }}}\n"
-                "          \\resumeItemListEnd"
-            )
+            title = rf"\href{{{_escape(url)}}}{{\underline{{{title}}}}}"
+        tech_stack = _escape(proj.get("tech_stack") or "")
+        right = rf"\textit{{\small {tech_stack}}}" if tech_stack else ""
+        lines.append(
+            f"    \\resumeProjectHeading{{\\textbf{{{title}}}}}{{{right}}}"
+        )
 
-        bullets = proj.get("bullets") or []
+        bullets = [
+            _escape_rich(b["text"])
+            for b in proj.get("bullets") or []
+            if not (proj.get("github") and _SOURCE_BULLET_RE.match(b["text"]))
+        ]
+        if proj.get("github"):
+            url = _normalize_https(proj["github"], "https://github.com/")
+            bullets.append(
+                rf"\textbf{{Source Code:}} \href{{{_escape(url)}}}"
+                r"{\underline{GitHub Repository}}"
+            )
         if bullets:
             lines.append("          \\resumeItemListStart")
-            for bullet in bullets:
-                lines.append(
-                    f"            \\resumeItemPlain{{{_escape(bullet['text'])}}}"
-                )
+            lines.extend(f"            \\resumeItemPlain{{{b}}}" for b in bullets)
             lines.append("          \\resumeItemListEnd")
     lines.append("  \\resumeSubHeadingListEnd")
     return "\n".join(lines)
@@ -208,7 +223,7 @@ def _render_achievements(items: list) -> str:
             lines.append("      \\resumeItemListStart")
             for bullet in bullets:
                 lines.append(
-                    f"        \\resumeItemPlain{{{_escape(bullet['text'])}}}"
+                    f"        \\resumeItemPlain{{{_escape_rich(bullet['text'])}}}"
                 )
             lines.append("      \\resumeItemListEnd")
     lines.append("  \\resumeSubHeadingListEnd")
@@ -298,7 +313,7 @@ _PREAMBLE = r"""%-------------------------
     \item
     \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
       \small#1 & #2 \\
-    \end{tabular*}\vspace{-7pt}
+    \end{tabular*}\vspace{-3pt}
 }
 
 \newcommand{\resumeItemPlain}[1]{
@@ -313,7 +328,7 @@ _PREAMBLE = r"""%-------------------------
 
 \newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=*]}
 \newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
-\newcommand{\resumeItemListStart}{\begin{itemize}[itemsep=3pt, topsep=0pt, parsep=0pt, partopsep=0pt]}
+\newcommand{\resumeItemListStart}{\begin{itemize}[itemsep=7pt, topsep=0pt, parsep=0pt, partopsep=0pt]}
 \newcommand{\resumeItemListEnd}{\end{itemize}\vspace{-5pt}}
 
 %-------------------------------------------
