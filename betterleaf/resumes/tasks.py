@@ -5,6 +5,8 @@ from celery.exceptions import SoftTimeLimitExceeded
 from django.db import transaction
 
 from betterleaf.resumes.models import MasterResume, Resume, TailorRequest
+from betterleaf.resumes.services.compiler import LatexCompileError
+from betterleaf.resumes.services.fit import fit_resume
 from betterleaf.resumes.services.latex import render_resume
 from betterleaf.resumes.services.llm import LLMUnavailableError
 from betterleaf.resumes.services.parsing import parse_resume_upload
@@ -16,6 +18,16 @@ from betterleaf.resumes.services.tailor.gap_answers import draft_proposals
 from betterleaf.resumes.services.tailor.master_view import add_missing_ids
 
 logger = logging.getLogger(__name__)
+
+
+def render_fitted(data) -> str:
+    """LaTeX tuned to fit one page; falls back to the default look if the
+    compiler is unreachable."""
+    try:
+        return fit_resume(data).latex
+    except LatexCompileError:
+        logger.warning("Could not fit resume; using default layout")
+        return render_resume(data)
 
 
 def handle_existing_master_upload(
@@ -66,7 +78,7 @@ def parse_and_create_master(self, workspace_id: str, file_b64: str, filename: st
             parsed_from_file=filename,
         )
 
-        main_tex = render_resume(structured_data)
+        main_tex = render_fitted(structured_data)
 
         Resume.objects.create(
             workspace_id=workspace_id,
@@ -123,7 +135,7 @@ def analyse_job(self, request_id: str) -> None:
                 master_resume=master,
                 title=f"{master.title} (tailored)",
                 template="jakes",
-                main_tex=render_resume(resume_data),
+                main_tex=render_fitted(resume_data),
                 structured_data=resume_data,
             )
             tailor.resume = resume
