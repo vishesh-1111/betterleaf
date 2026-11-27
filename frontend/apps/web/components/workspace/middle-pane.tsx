@@ -160,6 +160,7 @@ export function MiddlePane() {
             const state = pending > 0 ? "pending" : "idle";
             return (
               <button
+                key={id}
                 {...common}
                 className="re-tab re-tab-action"
                 data-state={state}
