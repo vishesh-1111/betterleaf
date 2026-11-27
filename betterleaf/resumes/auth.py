@@ -13,6 +13,7 @@ import hashlib
 import secrets
 from datetime import timedelta
 
+from django.conf import settings
 from django.utils import timezone
 
 from betterleaf.resumes.models import Workspace
@@ -37,11 +38,18 @@ def set_workspace_cookie(response, raw: str) -> None:
         max_age=int(ANONYMOUS_WORKSPACE_TTL.total_seconds()),
         httponly=True,
         samesite="Lax",
+        # Shared across app./api. subdomains so the frontend's server-side
+        # routing gate (proxy.ts) receives it. None => host-only (local dev).
+        domain=getattr(settings, "SESSION_COOKIE_DOMAIN", None),
+        secure=getattr(settings, "SESSION_COOKIE_SECURE", False),
     )
 
 
 def delete_workspace_cookie(response) -> None:
-    response.delete_cookie(GUEST_COOKIE_NAME)
+    response.delete_cookie(
+        GUEST_COOKIE_NAME,
+        domain=getattr(settings, "SESSION_COOKIE_DOMAIN", None),
+    )
 
 
 def get_user_workspace(user) -> Workspace:
