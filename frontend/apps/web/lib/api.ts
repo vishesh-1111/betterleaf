@@ -322,6 +322,12 @@ export interface GapProposal {
   reason: string;
 }
 
+export interface TailorExperience {
+  required_label: string;
+  required_years: number | null;
+  candidate_years: number;
+}
+
 export interface TailorScores {
   must_have: { earned: number; total: number };
   nice_to_have: { earned: number; total: number };
@@ -338,6 +344,7 @@ export interface TailorRequestDto {
   error?: string;
   resume_id?: string | null;
   scores?: TailorScores;
+  experience?: TailorExperience;
   requirements?: TailorRequirement[];
   gap_questions?: GapQuestion[];
   answer_targets?: AnswerTarget[];

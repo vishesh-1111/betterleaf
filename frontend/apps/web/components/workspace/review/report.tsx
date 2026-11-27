@@ -1,6 +1,10 @@
 "use client";
 
-import type { TailorRequirement, TailorScores } from "@/lib/api";
+import type {
+  TailorExperience,
+  TailorRequirement,
+  TailorScores,
+} from "@/lib/api";
 
 function Score({
   label,
@@ -31,7 +35,57 @@ function Score({
   );
 }
 
-export function Scores({ scores }: { scores: TailorScores }) {
+const fmtYears = (y: number) => `${Number.isInteger(y) ? y : y.toFixed(1)} yr`;
+
+function ExperienceMeter({ experience }: { experience: TailorExperience }) {
+  const { required_years: need, candidate_years: have, required_label } =
+    experience;
+  const hasTarget = need !== null && need > 0;
+  const pct = hasTarget ? Math.min(100, Math.round((have / need) * 100)) : 100;
+  const met = !hasTarget || have >= need;
+  return (
+    <div className="rv-exp">
+      <div className="rv-score-top">
+        <span className="rv-score-label">Experience</span>
+        <span className="rv-score-num">
+          {fmtYears(have)}{" "}
+          <span className="rv-muted">
+            {hasTarget ? `of ${required_label}` : "· no requirement stated"}
+          </span>
+        </span>
+      </div>
+      <div
+        className="rv-bar rv-bar-lg"
+        role="img"
+        aria-label={
+          hasTarget
+            ? `Experience: ${fmtYears(have)} of ${required_label} required`
+            : `Experience: ${fmtYears(have)}; none required`
+        }
+      >
+        <div
+          className={`rv-bar-fill${met ? "" : " rv-bar-warn"}`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      {hasTarget && (
+        <span className="rv-muted rv-exp-note">
+          {met
+            ? "You meet the experience requirement"
+            : `${fmtYears(need - have)} short of the requirement`}
+        </span>
+      )}
+    </div>
+  );
+}
+
+export function Scores({
+  scores,
+  experience,
+}: {
+  scores: TailorScores;
+  experience?: TailorExperience;
+}) {
   return (
     <section className="rv-section" aria-label="Coverage score">
       <h2 className="rv-h">How well you match</h2>
@@ -47,6 +101,7 @@ export function Scores({ scores }: { scores: TailorScores }) {
           total={scores.nice_to_have.total}
         />
       </div>
+      {experience && <ExperienceMeter experience={experience} />}
     </section>
   );
 }

@@ -85,8 +85,7 @@ def _render_heading(data: ResumeData) -> str:
     """Name and contact line; contact fields are all optional.
 
     Each URL-backed field renders as a short clickable word (no ``https://``
-    or raw URL text): GitHub shows the bare username, LinkedIn and Portfolio
-    show fixed labels.
+    or raw URL text): GitHub, LinkedIn and Portfolio show fixed labels.
     """
     contact = data.contact
     parts: list[str] = []
@@ -101,7 +100,7 @@ def _render_heading(data: ResumeData) -> str:
         parts.append(_link(url, "LinkedIn"))
     if contact.github:
         url = _normalize_https(contact.github, "https://github.com/")
-        parts.append(_link(url, contact.github.strip()))
+        parts.append(_link(url, "GitHub"))
     if contact.portfolio:
         url = _normalize_https(contact.portfolio, "https://")
         parts.append(_link(url, "Portfolio"))
@@ -184,8 +183,7 @@ def _render_projects(items: list) -> str:
         if proj.get("github"):
             url = _normalize_https(proj["github"], "https://github.com/")
             bullets.append(
-                rf"\textbf{{Source Code:}} \href{{{_escape(url)}}}"
-                r"{\underline{GitHub Repository}}"
+                rf"\href{{{_escape(url)}}}{{\underline{{GitHub}}}}"
             )
         if bullets:
             lines.append("          \\resumeItemListStart")

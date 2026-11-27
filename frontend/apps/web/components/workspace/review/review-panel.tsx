@@ -286,7 +286,12 @@ export function ReviewPanel({ fileId }: { fileId: string }) {
             </button>
           </p>
         )}
-        {dto.scores && <Scores scores={dto.scores} />}
+        {dto.scores && (
+          <Scores
+            scores={dto.scores}
+            experience={dto.experience}
+          />
+        )}
         {(dto.proposals?.length ?? 0) > 0 &&
         dto.status === "ready" &&
         !editingAnswers ? (

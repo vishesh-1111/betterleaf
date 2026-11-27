@@ -380,6 +380,7 @@ CORS_URLS_REGEX = r"^/api/.*$"
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    *([FRONTEND_URL] if FRONTEND_URL.startswith("https://") else []),
 ]
 CORS_ALLOW_CREDENTIALS = True
 
@@ -389,6 +390,7 @@ CORS_ALLOW_CREDENTIALS = True
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    *([FRONTEND_URL] if FRONTEND_URL.startswith("https://") else []),
 ]
 
 # DeepSeek — chat endpoint for the AI assistant

@@ -15,9 +15,14 @@ The user message has two parts:
 # Steps
 1. **Requirements.** List the job's concrete requirements (skills, tools,
    experience, qualifications).
+   - Do not list years of experience as a requirement; report it in
+     `experience_required` instead (see below).
    - `importance` is `must_have` or `nice_to_have`; use `must_have` when unclear.
    - `priority` ranks them across the whole job, 1 = most important.
    - `id` values are `req_1`, `req_2`, ... in the order you list them.
+   - `experience_required`: the years of experience the job asks for, as a
+     short string such as `"1 year"`, `"3 years"` or `"5+ years"`. If the job
+     gives a range, use its lower bound. Use `"Not Mentioned"` if none is stated.
 2. **Evidence.** For each requirement, find the master lines that show it.
    - Each evidence entry has `source_id` (an id from the master) and `quote`
      (words copied exactly from that line).
@@ -56,6 +61,7 @@ Return only one JSON object, no prose and no code fences:
 
 ```json
 {
+  "experience_required": "2 years",
   "requirements": [
     {
       "id": "req_1",

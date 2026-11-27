@@ -167,6 +167,24 @@
   font: 800 1.25rem/1 var(--display);
   font-variant-numeric: tabular-nums;
 }
+.bl-ws .rv-exp {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.bl-ws .rv-bar-lg {
+  height: 14px;
+}
+.bl-ws .rv-bar-warn {
+  background: #d9a441;
+}
+.bl-ws .rv-exp-note {
+  font-size: 0.85rem;
+}
 .bl-ws .rv-bar {
   height: 8px;
   border-radius: 999px;

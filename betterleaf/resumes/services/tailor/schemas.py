@@ -93,6 +93,10 @@ class ResumeSelection(BaseModel):
 
 class TailoringAnalysis(BaseModel):
     requirements: list[Requirement]
+    experience_required: str = Field(
+        default="Not Mentioned",
+        description='Years of experience the job asks for, e.g. "2 years"',
+    )
     gap_questions: list[GapQuestion] = Field(default_factory=list)
     selection: ResumeSelection = Field(default_factory=ResumeSelection)
 

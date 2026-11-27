@@ -8,6 +8,8 @@ from betterleaf.resumes.models import Resume
 from betterleaf.resumes.models import TailorRequest
 from betterleaf.resumes.services.schemas import ResumeData
 from betterleaf.resumes.services.tailor.master_update import BULLET_SECTIONS
+from betterleaf.resumes.services.tailor.experience import required_years
+from betterleaf.resumes.services.tailor.experience import total_experience_years
 from betterleaf.resumes.services.tailor.master_view import answer_targets
 from betterleaf.resumes.services.tailor.schemas import Requirement
 from betterleaf.resumes.services.tailor.scores import score_requirements
@@ -225,6 +227,14 @@ class TailorRequestSerializer(serializers.ModelSerializer):
                 [Requirement.model_validate(r) for r in requirements],
             )
             body["requirements"] = requirements
+            required = instance.result.get("experience_required", "Not Mentioned")
+            body["experience"] = {
+                "required_label": required,
+                "required_years": required_years(required),
+                "candidate_years": total_experience_years(
+                    instance.master_resume.structured_data,
+                ),
+            }
             body["gap_questions"] = instance.result.get("gap_questions", [])
             body["answer_targets"] = answer_targets(
                 instance.master_resume.structured_data,
