@@ -706,14 +706,14 @@
   initial-value: 0deg;
   inherits: false;
 }
-.bl-ws .re-tabbar .re-tabs .re-tab.re-tab-action[data-state="idle"] {
+.bl-ws .re-tabbar .re-tabs .re-tab.re-tab-action:is([data-state="idle"], [data-state="pending"]) {
   overflow: visible;
   border-color: transparent;
 }
 .bl-ws .re-tabbar .re-tabs .re-tab.re-tab-action[data-state="idle"][aria-selected="true"] {
   background: var(--surface);
 }
-.bl-ws .re-tab-action[data-state="idle"]::after {
+.bl-ws .re-tab-action:is([data-state="idle"], [data-state="pending"])::after {
   content: "";
   position: absolute;
   inset: -1.5px;
@@ -721,8 +721,9 @@
   pointer-events: none;
   clip-path: inset(-14px -14px 3px -14px);
 }
-/* Rim: a dim leaf hairline, with a bright comet riding over it. */
-.bl-ws .re-tab-action[data-state="idle"]::after {
+/* Rim: a dim leaf hairline, with a bright comet riding over it. Also runs on
+ * "Review" so a finished tailor response gets the same travelling light. */
+.bl-ws .re-tab-action:is([data-state="idle"], [data-state="pending"])::after {
   padding: 2px;
   background:
     conic-gradient(
@@ -748,29 +749,8 @@
   to { --re-tab-angle: 360deg; }
 }
 
-/* Pending "Review": leaf slab with a sheen sweep. */
-.bl-ws .re-tab-action[data-state="pending"]::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: -40%;
-  width: 24%;
-  background: rgb(255 255 255 / 0.3);
-  transform: skewX(-20deg);
-  pointer-events: none;
-  display: none;
-}
-@keyframes re-tab-sheen {
-  0% { transform: translateX(0) skewX(-20deg); }
-  36%, 100% { transform: translateX(700%) skewX(-20deg); }
-}
 @media (prefers-reduced-motion: no-preference) {
-  .bl-ws .re-tab-action[data-state="idle"]::after {
+  .bl-ws .re-tab-action:is([data-state="idle"], [data-state="pending"])::after {
     animation: re-tab-orbit 4.2s linear infinite;
-  }
-  .bl-ws .re-tab-action[data-state="pending"]:not([aria-selected="true"])::after {
-    display: block;
-    animation: re-tab-sheen 4.4s cubic-bezier(0.2, 0.7, 0.2, 1) infinite;
   }
 }

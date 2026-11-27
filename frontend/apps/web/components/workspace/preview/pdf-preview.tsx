@@ -390,7 +390,7 @@ export function PdfPreview() {
       style={{ background: "var(--surface)" }}
     >
       <div
-        className="flex h-9 items-center justify-between border-b px-2"
+        className="flex h-11 items-center justify-between border-b px-2"
         style={{ background: "var(--surface)", borderColor: "var(--ink)" }}
       >
         <div className="flex items-center gap-1.5">
@@ -504,13 +504,14 @@ export function PdfPreview() {
             </Select>
             <div className="mx-0.5 h-4 w-px bg-border" />
             <Button
-              variant="ghost"
-              size="icon"
-              className="size-6"
+              size="sm"
+              className="ml-1 h-7 gap-1.5 px-3 text-xs font-bold text-white shadow-sm hover:brightness-110"
+              style={{ background: "var(--leaf)" }}
               onClick={handleDownloadClick}
               title="Download PDF"
             >
-              <DownloadIcon className="size-3.5" />
+              <DownloadIcon className="size-4" />
+              Download
             </Button>
           </div>
         )}
