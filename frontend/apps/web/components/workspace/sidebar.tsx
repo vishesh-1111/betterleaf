@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { BriefcaseIcon, FileTextIcon, StarIcon } from "lucide-react";
 import { useDocumentStore, type ProjectFile } from "@/stores/document-store";
+import { useTailorStore } from "@/stores/tailor-store";
 import { cn } from "@/lib/utils";
 import packageJson from "@/package.json";
 
@@ -31,6 +32,7 @@ export function Sidebar() {
   const master = useDocumentStore((s) => s.master);
   const activeFileId = useDocumentStore((s) => s.activeFileId);
   const setActiveFile = useDocumentStore((s) => s.setActiveFile);
+  const jobTitles = useTailorStore((s) => s.jobTitles);
 
   const { base, jobs } = useMemo(() => {
     const tex = files.filter((f) => f.type === "tex");
@@ -40,7 +42,11 @@ export function Sidebar() {
       const jobId = f.jobId ?? f.tailorRequestId!;
       const group = groups.get(jobId) ?? {
         jobId,
-        label: f.jobLabel || "Job application",
+        label:
+          jobTitles[jobId] ||
+          (f.tailorRequestId && jobTitles[f.tailorRequestId]) ||
+          f.jobLabel ||
+          "Job application",
         versions: [],
       };
       group.versions.push(f);
@@ -53,7 +59,7 @@ export function Sidebar() {
       (b.versions[0].createdAt ?? "").localeCompare(a.versions[0].createdAt ?? ""),
     );
     return { base, jobs };
-  }, [files]);
+  }, [files, jobTitles]);
 
   const row = (file: ProjectFile, label: string) => (
     <button

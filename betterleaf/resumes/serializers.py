@@ -177,6 +177,10 @@ class TailorRequestCreateSerializer(serializers.Serializer):
     job_text = serializers.CharField(trim_whitespace=True)
 
 
+class JobTitleRequestSerializer(serializers.Serializer):
+    job_text = serializers.CharField(trim_whitespace=True)
+
+
 class GapAnswerSerializer(serializers.Serializer):
     requirement_id = serializers.CharField()
     source_type = serializers.ChoiceField(choices=BULLET_SECTIONS)

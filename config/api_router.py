@@ -5,6 +5,7 @@ from rest_framework.routers import DefaultRouter
 from rest_framework.routers import SimpleRouter
 
 from betterleaf.resumes.views import CompilationViewSet
+from betterleaf.resumes.views import JobTitleView
 from betterleaf.resumes.views import ResumeViewSet
 from betterleaf.resumes.views import TailorRequestViewSet
 from betterleaf.resumes.views import TemplateListView
@@ -23,5 +24,6 @@ app_name = "api"
 urlpatterns = [
     path("users/auth-status/", auth_status, name="auth-status"),
     *router.urls,
+    path("job-title/", JobTitleView.as_view(), name="job-title"),
     path("templates/", TemplateListView.as_view(), name="template-list"),
 ]

@@ -119,17 +119,20 @@ function JobForm({
 }
 
 function JobBar({
+  requestId,
   jobText,
   onChange,
 }: {
+  requestId: string;
   jobText: string;
   onChange?: () => void;
 }) {
+  const title = useTailorStore((s) => s.jobTitles[requestId]);
   return (
     <div className="rv-jobbar">
       <span className="rv-jobbar-label">Job</span>
       <span className="rv-jobbar-text" title={jobText}>
-        {firstLine(jobText) || "Pasted job description"}
+        {title || firstLine(jobText) || "Pasted job description"}
       </span>
       {onChange && (
         <button type="button" className="rv-link" onClick={onChange}>
@@ -239,7 +242,7 @@ export function ReviewPanel({ fileId }: { fileId: string }) {
   } else if (dto.status === "analysing") {
     body = (
       <>
-        <JobBar jobText={dto.job_text} />
+        <JobBar requestId={requestId} jobText={dto.job_text} />
         <div className="rv-working" role="status">
           <LoaderIcon className="re-spin size-4" aria-hidden="true" />
           {pollError
@@ -261,7 +264,11 @@ export function ReviewPanel({ fileId }: { fileId: string }) {
   } else {
     body = (
       <>
-        <JobBar jobText={dto.job_text} onChange={() => setComposing(true)} />
+        <JobBar
+          requestId={requestId}
+          jobText={dto.job_text}
+          onChange={() => setComposing(true)}
+        />
         {dto.error && (
           <p className="rv-error" role="alert">
             {dto.error}

@@ -3,6 +3,7 @@ import { create } from "zustand";
 import {
   ApiError,
   confirmProposals,
+  getJobTitle,
   getResume,
   getTailorRequest,
   resumeToFile,
@@ -34,6 +35,8 @@ interface TailorState {
   /** Which request a file's Review tab shows. A tailored file falls back to its
    * own `tailorRequestId`; this wins while a follow-up is running. */
   viewing: Record<string, string>;
+  /** LLM-summarised job title by request id; absent until it arrives (or if it fails). */
+  jobTitles: Record<string, string>;
   /** The job text being typed, kept when switching tabs. */
   jobDraft: string;
   answers: Record<string, Record<string, AnswerDraft>>;
@@ -52,6 +55,7 @@ export const useTailorStore = create<TailorState>()((set) => ({
   requests: {},
   pollErrors: {},
   viewing: {},
+  jobTitles: {},
   jobDraft: "",
   answers: {},
   edits: {},
@@ -201,6 +205,18 @@ export function ensureTailorRequest(id: string) {
 
 /** Start a job from pasted text and show it on `fileId`'s Review tab. Throws
  * an `Error` with a readable message if the server refuses. */
+/** Fire-and-forget: the bar shows the first line until the title lands. */
+async function fetchJobTitle(id: string, jobText: string) {
+  try {
+    const title = await getJobTitle(jobText);
+    useTailorStore.setState((s) => ({
+      jobTitles: { ...s.jobTitles, [id]: title },
+    }));
+  } catch {
+    // Non-critical; keep the first-line fallback.
+  }
+}
+
 export async function startTailor(fileId: string, jobText: string) {
   try {
     const started = await startTailorRequest(jobText.trim());
@@ -218,6 +234,7 @@ export async function startTailor(fileId: string, jobText: string) {
       },
     }));
     trackTailorRequest(started.id, { adopt: true });
+    void fetchJobTitle(started.id, jobText.trim());
   } catch (err) {
     throw new Error(
       err instanceof ApiError && err.detail

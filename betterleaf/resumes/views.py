@@ -30,6 +30,7 @@ from betterleaf.resumes.serializers import CompilationListSerializer
 from betterleaf.resumes.serializers import CompilationSerializer
 from betterleaf.resumes.serializers import ConfirmSerializer
 from betterleaf.resumes.serializers import GapAnswersSerializer
+from betterleaf.resumes.serializers import JobTitleRequestSerializer
 from betterleaf.resumes.serializers import PdfUploadSerializer
 from betterleaf.resumes.serializers import ResumeListSerializer
 from betterleaf.resumes.serializers import ResumeSerializer
@@ -39,7 +40,10 @@ from betterleaf.resumes.serializers import TemplateSerializer
 from betterleaf.resumes.services.compiler import LatexCompileError
 from betterleaf.resumes.services.compiler import run_compilation
 from betterleaf.resumes.services.fit import fit_resume
+from betterleaf.resumes.services.job_title import summarise_job_title
 from betterleaf.resumes.services.latex import render_resume
+from betterleaf.resumes.services.llm import LLMError
+from betterleaf.resumes.services.llm import LLMUnavailableError
 from betterleaf.resumes.services.tailor.gap_answers import GapAnswerError
 from betterleaf.resumes.services.tailor.gap_answers import handled_gaps_after
 from betterleaf.resumes.services.tailor.gap_answers import validate_answers
@@ -227,6 +231,33 @@ class TemplateListView(APIView):
 
     def get(self, request):
         return Response(TemplateSerializer(TEMPLATE_CATALOG.values(), many=True).data)
+
+
+class JobTitleView(APIView):
+    """Summarise a pasted job description into a short title.
+
+    Stateless and synchronous: the SPA fires it alongside the tailoring
+    request and falls back to the first line of the JD if it fails.
+    """
+
+    permission_classes = [HasWorkspace]
+
+    def post(self, request):
+        body = JobTitleRequestSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        try:
+            title = summarise_job_title(body.validated_data["job_text"])
+        except LLMUnavailableError:
+            return Response(
+                {"detail": "Title service unavailable."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        except LLMError:
+            return Response(
+                {"detail": "Couldn't summarise a title."},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+        return Response({"title": title})
 
 
 class ResumeViewSet(viewsets.ModelViewSet):

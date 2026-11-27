@@ -372,6 +372,14 @@ export async function startTailorRequest(
   });
 }
 
+export async function getJobTitle(jobText: string): Promise<string> {
+  const res = await request<{ title: string }>("job-title/", {
+    method: "POST",
+    body: JSON.stringify({ job_text: jobText }),
+  });
+  return res.title;
+}
+
 export async function getTailorRequest(
   id: string,
   signal?: AbortSignal,
