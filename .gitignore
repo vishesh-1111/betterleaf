@@ -278,3 +278,11 @@ betterleaf/media/
 !.envs/.local/
 .envs/.local/.django
 .envs/.local/.postgres
+
+# LaTeX build artifacts
+main.aux
+main.fdb_latexmk
+main.fls
+main.log
+main.out
+main.pdf
