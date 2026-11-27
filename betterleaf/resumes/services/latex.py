@@ -119,7 +119,7 @@ def _render_heading(data: ResumeData) -> str:
 
 def _render_summary(value: dict | None) -> str:
     text = (value or {}).get("text") or ""
-    return f"\\section{{Summary}}\n  {_escape(text)}"
+    return f"\\section{{Summary}}\n  {_escape_rich(text)}"
 
 
 def _render_education(items: list) -> str:

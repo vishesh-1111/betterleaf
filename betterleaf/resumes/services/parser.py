@@ -43,7 +43,7 @@ Rules:
 - For projects, put "Source Code"/repository links only in "github" and the
   live link only in "deployed"; do not repeat them as bullets.
 - Preserve bold emphasis: keep Markdown **bold** markers around the same words
-  in bullets exactly as they appear in the input. Do not add new bold.
+  in bullets and the summary exactly as they appear in the input. Do not add new bold.
 - Return ONLY the JSON object; no prose, no code fences."""
 
 
