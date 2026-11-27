@@ -231,6 +231,18 @@
 .bl-ws .rv-fold > .rv-list {
   margin-top: 10px;
 }
+.bl-ws .rv-fold + .rv-fold {
+  margin-top: 12px;
+}
+.bl-ws .rv-jobtext {
+  margin: 10px 0 0;
+  max-height: 320px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
 .bl-ws .rv-quotes {
   margin: 4px 0 0;
   padding-left: 18px;

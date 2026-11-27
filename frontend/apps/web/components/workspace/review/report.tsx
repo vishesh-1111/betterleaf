@@ -102,3 +102,14 @@ export function MatchedDetails({
     </details>
   );
 }
+
+/** The pasted job description, folded away until the user wants to re-read it. */
+export function JobDescription({ text }: { text: string }) {
+  if (!text.trim()) return null;
+  return (
+    <details className="rv-fold">
+      <summary>See job description</summary>
+      <p className="rv-jobtext">{text}</p>
+    </details>
+  );
+}

@@ -14,7 +14,7 @@ import {
   useTailorStore,
 } from "@/stores/tailor-store";
 import { hasResumeData } from "@/lib/resume-data";
-import { MatchedDetails, Scores } from "./report";
+import { JobDescription, MatchedDetails, Scores } from "./report";
 import { GapQuestions } from "./gap-questions";
 import { Proposals } from "./proposals";
 import "@/styles/review.css";
@@ -299,6 +299,7 @@ export function ReviewPanel({ fileId }: { fileId: string }) {
           <GapQuestions dto={dto} />
         )}
         <MatchedDetails requirements={dto.requirements ?? []} />
+        <JobDescription text={dto.job_text} />
       </>
     );
   }

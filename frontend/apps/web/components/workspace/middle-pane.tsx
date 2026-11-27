@@ -12,9 +12,12 @@ import "@/styles/resume-editor.css";
 
 type Tab = "edit" | "latex" | "review";
 
+/** Flip to true to bring the raw LaTeX tab back. */
+const SHOW_LATEX_TAB = false;
+
 const TABS: { id: Tab; label: string }[] = [
   { id: "edit", label: "Edit" },
-  { id: "latex", label: "LaTeX" },
+  ...(SHOW_LATEX_TAB ? [{ id: "latex" as const, label: "LaTeX" }] : []),
   { id: "review", label: "Review" },
 ];
 
@@ -111,7 +114,9 @@ export function MiddlePane() {
       ? "review"
       : hasResumeData(activeFile.structuredData)
         ? "edit"
-        : "latex");
+        : SHOW_LATEX_TAB
+          ? "latex"
+          : "edit");
   const select = (next: Tab) =>
     setChosen((prev) => ({ ...prev, [activeFile.id]: next }));
 
