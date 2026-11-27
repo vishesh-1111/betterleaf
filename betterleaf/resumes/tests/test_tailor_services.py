@@ -90,12 +90,21 @@ def test_analyse_tidies_gap_questions_and_scores(master):
 
 def test_analyse_retries_once_then_gives_up(master):
     bad = _answer(master)
-    bad["requirements"][0]["evidence"][0]["quote"] = "made up"
+    bad["requirements"][0]["evidence"][0]["source_id"] = "nope"
     with mock.patch(ANALYSE, return_value=bad) as post:
         with pytest.raises(TailoringError):
             analyse_job_fit("job", master)
     assert post.call_count == 2
-    assert "quote not found" in post.call_args.args[1]
+    assert "unknown evidence id" in post.call_args.args[1]
+
+
+def test_analyse_repairs_bad_quote_without_retry(master):
+    bad = _answer(master)
+    bad["requirements"][0]["evidence"][0]["quote"] = "made up"
+    with mock.patch(ANALYSE, return_value=bad) as post:
+        analysis = analyse_job_fit("job", master)
+    assert post.call_count == 1
+    assert analysis.requirements[0].evidence[0].quote == "Built REST APIs in Python"
 
 
 def test_analyse_recovers_on_second_attempt(master):

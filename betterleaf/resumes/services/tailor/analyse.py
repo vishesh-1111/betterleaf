@@ -1,6 +1,8 @@
 """Score a job description against a master resume and pick what to keep."""
 
 import logging
+import re
+import unicodedata
 
 from pydantic import ValidationError
 
@@ -63,14 +65,11 @@ def _check_requirements(analysis: TailoringAnalysis, index: MasterIndex) -> list
         seen.add(req.id)
         if req.status != "not_met" and not req.evidence:
             errors.append(f"{req.id}: status {req.status!r} needs evidence")
-        for ev in req.evidence:
-            line = index.lines.get(ev.source_id)
-            if line is None:
-                errors.append(f"{req.id}: unknown evidence id {ev.source_id!r}")
-            elif ev.quote not in line:
-                errors.append(
-                    f"{req.id}: quote not found in line {ev.source_id!r}: {ev.quote!r}",
-                )
+        errors.extend(
+            f"{req.id}: unknown evidence id {ev.source_id!r}"
+            for ev in req.evidence
+            if ev.source_id not in index.lines
+        )
     errors.extend(
         f"gap_questions: unknown requirement id {q.requirement_id!r}"
         for q in analysis.gap_questions
@@ -79,9 +78,33 @@ def _check_requirements(analysis: TailoringAnalysis, index: MasterIndex) -> list
     return errors
 
 
+def _normalise(text: str) -> str:
+    """Fold dash/quote/whitespace/case differences the LLM tends to introduce."""
+    text = unicodedata.normalize("NFKC", text)
+    text = re.sub(r"[‐-―−]", "-", text)
+    text = re.sub(r"[‘’]", "'", text)
+    text = re.sub(r"[“”]", '"', text)
+    return " ".join(text.split()).casefold()
+
+
+def repair_quotes(analysis: TailoringAnalysis, index: MasterIndex) -> None:
+    """Make every evidence quote real master text.
+
+    The quote is display-only; ``source_id`` is what is trusted. A quote that
+    matches loosely (dashes, quotes, spacing, case) is kept; any other is
+    replaced by the cited line itself, so a paraphrase never fails the request.
+    """
+    for req in analysis.requirements:
+        for ev in req.evidence:
+            line = index.lines.get(ev.source_id)
+            if line is not None and _normalise(ev.quote) not in _normalise(line):
+                ev.quote = line
+
+
 def check_analysis(analysis: TailoringAnalysis, master_data: dict) -> list[str]:
     """Return every way the analysis disagrees with the master (empty = valid)."""
     index = index_master(master_data)
+    repair_quotes(analysis, index)
     return _check_requirements(analysis, index) + _check_selection(analysis, index)
 
 

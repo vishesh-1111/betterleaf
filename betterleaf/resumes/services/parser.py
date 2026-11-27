@@ -58,7 +58,7 @@ def _parse_markdown(markdown: str) -> ResumeData:
     does not satisfy :class:`ResumeData`.
     """
     try:
-        raw = post_deepseek_chat(_SYSTEM_PROMPT, markdown, max_tokens=2000)
+        raw = post_deepseek_chat(_SYSTEM_PROMPT, markdown, max_tokens=6000)
     except LLMError as exc:
         raise ResumeParseError(str(exc)) from exc
 
