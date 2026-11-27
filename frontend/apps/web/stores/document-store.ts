@@ -1,6 +1,11 @@
 import { create } from "zustand";
 
-import { createResume, deleteResume, patchResume } from "@/lib/api";
+import {
+  createResume,
+  deleteResume,
+  patchResume,
+  type MasterResumeDto,
+} from "@/lib/api";
 import {
   hasResumeData,
   normalizeResumeData,
@@ -17,6 +22,10 @@ export interface ProjectFile {
   resumeId?: string;
   /** The tailor job this resume came from; null for an original resume. */
   tailorRequestId?: string | null;
+  /** First tailor request on the job; groups a job's versions together. */
+  jobId?: string | null;
+  jobLabel?: string | null;
+  createdAt?: string;
   /** Last LaTeX known to be on the server. */
   savedTex?: string;
   /** Raw resume data from the server (`{}` when never parsed). */
@@ -43,6 +52,8 @@ interface DocumentState {
   isCompiling: boolean;
   isSaving: boolean;
   initialized: boolean;
+  master: MasterResumeDto | null;
+  setMaster: (master: MasterResumeDto | null) => void;
   compileRequestId: number;
   /** A rebuild was asked for while one was running; run it right after. */
   compileQueued: boolean;
@@ -184,6 +195,8 @@ export const useDocumentStore = create<DocumentState>()((set, get) => ({
   isCompiling: false,
   isSaving: false,
   initialized: false,
+  master: null,
+  setMaster: (master) => set({ master }),
   compileRequestId: 0,
   compileQueued: false,
 

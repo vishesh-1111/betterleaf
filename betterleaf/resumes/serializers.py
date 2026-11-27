@@ -108,6 +108,27 @@ class ResumeSerializer(TailorRequestIdMixin, serializers.ModelSerializer):
 
 
 class ResumeListSerializer(TailorRequestIdMixin, serializers.ModelSerializer):
+    """Workspace listing shape. Adds the job a tailored resume belongs to.
+
+    ``context["jobs"]`` maps each tailor request id to ``(root_id, label)``,
+    where the root is the first request on that job (follow-ups share it).
+    """
+
+    job_id = serializers.SerializerMethodField()
+    job_label = serializers.SerializerMethodField()
+
+    def _job(self, resume):
+        tailor_id = self.get_tailor_request_id(resume)
+        return self.context.get("jobs", {}).get(tailor_id)
+
+    def get_job_id(self, resume):
+        job = self._job(resume)
+        return job[0] if job else None
+
+    def get_job_label(self, resume):
+        job = self._job(resume)
+        return job[1] if job else None
+
     class Meta:
         model = Resume
         fields = [
@@ -118,9 +139,12 @@ class ResumeListSerializer(TailorRequestIdMixin, serializers.ModelSerializer):
             "main_tex",
             "structured_data",
             "tailor_request_id",
+            "job_id",
+            "job_label",
+            "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "slug", "updated_at"]
+        read_only_fields = ["id", "slug", "created_at", "updated_at"]
 
 
 class CompilationListSerializer(serializers.ModelSerializer):

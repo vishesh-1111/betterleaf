@@ -10,10 +10,12 @@ import {
   MinusIcon,
   PlusIcon,
   DownloadIcon,
+  WandSparklesIcon,
 } from "lucide-react";
 import { useDocumentStore } from "@/stores/document-store";
 import { Button } from "@/components/ui/button";
-import { checkAuthentication } from "@/lib/api";
+import { autofitResume, checkAuthentication } from "@/lib/api";
+import { toPayload } from "@/lib/resume-data";
 import {
   Select,
   SelectContent,
@@ -243,6 +245,39 @@ export function PdfPreview() {
     }
   };
 
+  const handleAutofit = async () => {
+    const state = useDocumentStore.getState();
+    const file = state.files.find((f) => f.id === state.activeFileId);
+    if (!file?.resumeId || isCompiling) return;
+    setIsCompiling(true);
+    setPdfError(null);
+    try {
+      const { resume } = await autofitResume(
+        file.resumeId,
+        file.draft ? toPayload(file.draft) : undefined,
+      );
+      useDocumentStore.setState((s) => ({
+        files: s.files.map((f) =>
+          f.id === file.id
+            ? {
+                ...f,
+                content: resume.main_tex,
+                savedTex: resume.main_tex,
+                structuredData: resume.structured_data,
+              }
+            : f,
+        ),
+      }));
+      setPdfData(await compileLatex());
+    } catch (error) {
+      setCompileError(
+        error instanceof Error ? error.message : "Autofit failed",
+      );
+    } finally {
+      setIsCompiling(false);
+    }
+  };
+
   const renderContent = () => {
     if (compileError) {
       return (
@@ -421,6 +456,19 @@ export function PdfPreview() {
             <span className="mr-2 text-xs" style={{ color: "var(--muted)" }}>
               {numPages} {numPages === 1 ? "page" : "pages"}
             </span>
+            {numPages > 1 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="mr-1 h-6 gap-1 px-2 text-xs"
+                onClick={handleAutofit}
+                disabled={isCompiling}
+                title="Adjust spacing and size to fit one page"
+              >
+                <WandSparklesIcon className="size-3.5" />
+                Autofit
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="icon"

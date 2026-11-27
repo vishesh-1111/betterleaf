@@ -7,22 +7,6 @@ import { DEFAULT_TEX_CONTENT } from "@/lib/default-document";
 import { hasResumeData } from "@/lib/resume-data";
 import { resumeRunningRequest } from "@/stores/tailor-store";
 
-const DEFAULT_IMAGE_FILE = {
-  name: "hand-write.jpg",
-  path: "/hand-write.jpg",
-};
-
-async function loadImageAsDataUrl(path: string): Promise<string> {
-  const res = await fetch(path);
-  const blob = await res.blob();
-  const { promise, resolve, reject } = Promise.withResolvers<string>();
-  const reader = new FileReader();
-  reader.onload = () => resolve(reader.result as string);
-  reader.onerror = () => reject(reader.error ?? new Error("read failed"));
-  reader.readAsDataURL(blob);
-  return promise;
-}
-
 export function useProjectInit() {
   const initialized = useDocumentStore((s) => s.initialized);
   const setInitialized = useDocumentStore((s) => s.setInitialized);
@@ -35,6 +19,8 @@ export function useProjectInit() {
       // Establish (or reuse) the workspace so the `bl_session` cookie is set
       // and fetch all of its resumes in one call.
       const workspace = await getWorkspace();
+
+      useDocumentStore.getState().setMaster(workspace.master_resume ?? null);
 
       let resumes = workspace.resumes;
 
@@ -78,21 +64,6 @@ export function useProjectInit() {
           );
         if (original) {
           resumeRunningRequest(original.id, workspace.active_tailor_request_id);
-        }
-      }
-
-      // Seed the bundled image asset.
-      const imageAlready = state.files.some(
-        (f) => f.type === "image" && f.name === DEFAULT_IMAGE_FILE.name,
-      );
-      if (!imageAlready) {
-        try {
-          const dataUrl = await loadImageAsDataUrl(DEFAULT_IMAGE_FILE.path);
-          const priorActive = useDocumentStore.getState().activeFileId;
-          addFile({ name: DEFAULT_IMAGE_FILE.name, type: "image", dataUrl });
-          useDocumentStore.getState().setActiveFile(priorActive);
-        } catch (err) {
-          console.error("Failed to load default image:", err);
         }
       }
 

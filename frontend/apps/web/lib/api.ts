@@ -13,6 +13,17 @@ export interface ResumeDto {
   structured_data: Partial<ResumeData>;
   /** The job this resume was tailored for; null for an original resume. */
   tailor_request_id?: string | null;
+  /** First tailor request on the same job; only in the workspace listing. */
+  job_id?: string | null;
+  /** Short job-text snippet used to name the job group. */
+  job_label?: string | null;
+  created_at?: string;
+  updated_at: string;
+}
+
+export interface MasterResumeDto {
+  id: string;
+  title: string;
   updated_at: string;
 }
 
@@ -81,6 +92,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export interface WorkspaceDto {
   workspace_id: string;
   anonymous: boolean;
+  master_resume: MasterResumeDto | null;
   resumes: ResumeDto[];
   /** A tailor job still running, so a reload can pick it back up. */
   active_tailor_request_id?: string | null;
@@ -146,6 +158,26 @@ export async function compileResume(resumeId: string): Promise<CompilationDto> {
   });
 }
 
+export interface AutofitResult {
+  /** False when even the tightest layout overflows the page limit. */
+  fits: boolean;
+  resume: ResumeDto;
+}
+
+/** Re-render the LaTeX with spacing tuned to fit one page. Pass the unsaved
+ * form data so edits not yet autosaved are included. */
+export async function autofitResume(
+  resumeId: string,
+  structuredData?: ResumeData,
+): Promise<AutofitResult> {
+  return request<AutofitResult>(`resumes/${resumeId}/autofit/`, {
+    method: "POST",
+    body: JSON.stringify(
+      structuredData ? { structured_data: structuredData } : {},
+    ),
+  });
+}
+
 export interface AuthStatus {
   authenticated: boolean;
 }
@@ -186,6 +218,9 @@ export function resumeToFile(resume: ResumeDto): ProjectFile {
     dataStatus: "idle",
     resumeId: resume.id,
     tailorRequestId: resume.tailor_request_id ?? null,
+    jobId: resume.job_id ?? null,
+    jobLabel: resume.job_label ?? null,
+    createdAt: resume.created_at,
   };
 }
 

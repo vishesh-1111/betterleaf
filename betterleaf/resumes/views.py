@@ -36,7 +36,9 @@ from betterleaf.resumes.serializers import ResumeSerializer
 from betterleaf.resumes.serializers import TailorRequestCreateSerializer
 from betterleaf.resumes.serializers import TailorRequestSerializer
 from betterleaf.resumes.serializers import TemplateSerializer
+from betterleaf.resumes.services.compiler import LatexCompileError
 from betterleaf.resumes.services.compiler import run_compilation
+from betterleaf.resumes.services.fit import fit_resume
 from betterleaf.resumes.services.latex import render_resume
 from betterleaf.resumes.services.tailor.gap_answers import GapAnswerError
 from betterleaf.resumes.services.tailor.gap_answers import handled_gaps_after
@@ -155,6 +157,30 @@ class UploadStatusView(CsrfCookieAPIView):
         return Response(body)
 
 
+def _job_label(job_text: str) -> str:
+    """First non-empty line of the job text, shortened for a sidebar row."""
+    line = next((ln.strip() for ln in job_text.splitlines() if ln.strip()), "")
+    return line if len(line) <= 60 else f"{line[:57]}..."
+
+
+def _job_groups(workspace) -> dict[str, tuple[str, str]]:
+    """Map each tailor request id to (root request id, job label)."""
+    rows = {
+        t.id: t
+        for t in TailorRequest.objects.filter(workspace=workspace).only(
+            "id", "parent_id", "job_text",
+        )
+    }
+    groups = {}
+    for tid in rows:
+        root, seen = rows[tid], {tid}
+        while root.parent_id in rows and root.parent_id not in seen:
+            root = rows[root.parent_id]
+            seen.add(root.id)
+        groups[str(tid)] = (str(root.id), _job_label(root.job_text))
+    return groups
+
+
 class WorkspaceView(CsrfCookieAPIView):
     permission_classes = [HasWorkspace]
 
@@ -163,7 +189,9 @@ class WorkspaceView(CsrfCookieAPIView):
         resumes = ResumeListSerializer(
             Resume.objects.filter(workspace=workspace).select_related("tailor_request"),
             many=True,
+            context={"jobs": _job_groups(workspace)},
         ).data
+        master = MasterResume.objects.filter(workspace=workspace).first()
         # A job still running (no finished resume to hang it on), so the Review
         # tab can pick it up after a reload. Old stuck rows are ignored.
         running = (
@@ -179,6 +207,15 @@ class WorkspaceView(CsrfCookieAPIView):
             {
                 "workspace_id": str(workspace.id),
                 "anonymous": workspace.user_id is None,
+                "master_resume": (
+                    {
+                        "id": str(master.id),
+                        "title": master.title,
+                        "updated_at": master.updated_at,
+                    }
+                    if master
+                    else None
+                ),
                 "resumes": resumes,
                 "active_tailor_request_id": str(running.id) if running else None,
             },
@@ -238,6 +275,37 @@ class ResumeViewSet(viewsets.ModelViewSet):
         return Response(
             CompilationSerializer(compilation).data,
             status=status.HTTP_201_CREATED,
+        )
+
+    @action(detail=True, methods=["post"])
+    def autofit(self, request, pk=None):
+        """Re-render the LaTeX from the resume data with spacing tuned to fit
+        one page. Accepts optional unsaved ``structured_data``."""
+        resume = self.get_object()
+        data = resume.structured_data
+        if "structured_data" in request.data:
+            body = ResumeSerializer(
+                resume, data={"structured_data": request.data["structured_data"]},
+                partial=True,
+            )
+            body.is_valid(raise_exception=True)
+            data = body.validated_data["structured_data"]
+        if not data:
+            return Response(
+                {"detail": "Resume has no structured data to fit."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            result = fit_resume(data)
+        except LatexCompileError as exc:
+            return Response(
+                {"detail": str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        resume.structured_data = data
+        resume.main_tex = result.latex
+        resume.save(update_fields=["structured_data", "main_tex", "updated_at"])
+        return Response(
+            {"fits": result.fits, "resume": ResumeSerializer(resume).data},
         )
 
     @action(detail=True, methods=["get"])
