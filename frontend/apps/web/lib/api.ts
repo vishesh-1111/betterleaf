@@ -414,3 +414,11 @@ export async function confirmProposals(
     body: JSON.stringify({ accepted }),
   });
 }
+
+/** One atomic change within a proposal. `after` holds the new content. */
+export interface Change {
+  op: "add" | "replace" | "remove" | "reorder";
+  path?: string;
+  before?: unknown;
+  after?: unknown;
+}
