@@ -70,6 +70,8 @@ class CsrfCookieAPIView(APIView):
 
 
 class UserStatusView(CsrfCookieAPIView):
+    permission_classes = [AllowAny]
+
     def get(self, request):
         user = getattr(request, "user", None)
         return Response(
