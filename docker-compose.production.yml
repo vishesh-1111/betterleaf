@@ -72,6 +72,8 @@ services:
   latex:
     image: texlive/texlive:latest
     user: "1000:1000"
+    environment:
+      - HOME=/tmp
     volumes:
       - ./compose/local/latex-server:/latex-server:ro
     command: ["python3", "/latex-server/server.py"]
