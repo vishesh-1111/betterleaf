@@ -57,11 +57,13 @@ services:
   celeryworker:
     <<: *django
     image: betterleaf_production_celeryworker
+    restart: on-failure
     command: /start-celeryworker
 
   celerybeat:
     <<: *django
     image: betterleaf_production_celerybeat
+    restart: on-failure
     command: /start-celerybeat
 
   flower:
